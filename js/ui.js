@@ -1,7 +1,7 @@
 // 화면
 (function () {
   const D = GQ.data;
-  const APP_VERSION = '11';
+  const APP_VERSION = '12';
   const app = document.getElementById('app');
   let state = null, store = null, caps = { tts: false, asr: false }, tab = 'home', toastT = null, mascotN = 0;
   const now = () => Date.now();
@@ -299,8 +299,8 @@
         const mic = root.querySelector('#mic'), heard = root.querySelector('#heard');
         let tries = 0, busy = false;
         mic.onclick = () => {
-          if (busy) return; busy = true; mic.classList.add('on'); heard.textContent = '듣고 있어요…';
-          GQ.speech.listen(q.accept, (t) => { heard.textContent = t; }).then(res => {
+          if (busy) return; busy = true; heard.textContent = '마이크 준비 중…';
+          GQ.speech.listen(q.accept, (t) => { heard.textContent = t; }, () => { mic.classList.add('on'); heard.textContent = '지금 말하세요!'; }).then(res => {
             busy = false; mic.classList.remove('on');
             if (res.error && (res.error === 'not_granted' || res.error === 'unavailable' || res.error === 'not-allowed' || res.error === 'service-not-allowed' || res.error === 'error')) {
               toast('이 기기에서는 마이크를 쓸 수 없어서 스스로 채점으로 바꿨어요'); return selfCheck(q, k);

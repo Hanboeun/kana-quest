@@ -180,7 +180,8 @@
     });
   }
   // 반드시 버튼 클릭 안에서 바로 호출 (await 없이)
-  function listen(accept, onPartial) {
+  // onReady: 아이폰이 실제로 듣기 시작한 순간 (그때 "지금 말하세요" 표시)
+  function listen(accept, onPartial, onReady) {
     return new Promise((resolve) => {
       let heard = '', settled = false;
       const done = (h, err) => { if (settled) return; settled = true; resolve({ heard: h, ok: matchHeard(h, accept), error: err || null }); };
@@ -188,9 +189,10 @@
       let stop = () => done(heard);
       if (dictation) {
         const offs = [];
-        offs.push(dictation.onPartial(({ text }) => { onPartial && onPartial(text); if (matchHeard(text, accept)) { heard = text; dictation.stop().catch(() => {}); } }));
+        offs.push(dictation.onPartial(({ text }) => { onPartial && onPartial(text); if (matchHeard(text, accept)) { heard = text; clearTimeout(timer); dictation.stop().catch(() => {}); done(text); } }));
         offs.push(dictation.onFinal(({ text }) => { heard += text; }));
         offs.push(dictation.onState(({ state, reason }) => {
+          if (state === 'listening') onReady && onReady();
           if (state === 'idle') { clearTimeout(timer); offs.forEach(f => f()); if (reason === 'not_granted' || reason === 'unavailable') asrBroken = true; done(heard, reason && reason !== 'stopped' && reason !== 'viewer_stopped' ? reason : null); }
         }));
         stop = () => dictation.stop().catch(() => done(heard));
@@ -208,8 +210,12 @@
           const hit = alts.find(a => matchHeard(a, accept));
           heard = hit || alts[0] || '';
           onPartial && onPartial(heard);
-          if (hit) rec.stop();
+          // 알아들은 순간 바로 채점 (아이폰이 듣기를 끝낼 때까지 기다리지 않음)
+          if (hit) { clearTimeout(timer); try { rec.stop(); } catch (e) {} done(hit); }
         };
+        let readyFired = false;
+        const ready = () => { if (!readyFired) { readyFired = true; onReady && onReady(); } };
+        rec.onaudiostart = ready;
         rec.onerror = (ev) => { if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') asrBroken = true; clearTimeout(timer); done(heard, ev.error); };
         rec.onend = () => { clearTimeout(timer); done(heard); };
         stop = () => { try { rec.stop(); } catch (e) { done(heard); } };
