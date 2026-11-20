@@ -1,7 +1,7 @@
 // 화면
 (function () {
   const D = GQ.data;
-  const APP_VERSION = '14';
+  const APP_VERSION = '15';
   const app = document.getElementById('app');
   let state = null, store = null, caps = { tts: false, asr: false }, tab = 'home', toastT = null, mascotN = 0;
   const now = () => Date.now();
@@ -453,7 +453,7 @@
     shell(`<h1>설정</h1><p class="sub">앱 버전 ${APP_VERSION}</p>
       <section class="card">${sw('hangul', '한글 발음 같이 보기', '로마자 옆에 한글 발음을 보여줘요')}${sw('sound', '소리', '문제를 풀 때 일본어 발음을 들려줘요')}
         ${sw('joinKana', '녹음 없는 단어는 글자 녹음 이어 붙이기', '대부분의 단어는 사람이 단어째 녹음한 소리로 나와요. 녹음이 없는 단어만, 켜면 글자 녹음을 이어 붙이고 끄면 기계 음성으로 읽어요')}
-        <button class="btn ghost small" id="trywords">단어 소리 들어보기 (いえ · ねこ · ラーメン)</button></section>
+        <button class="btn ghost small" id="trywords">단어 소리 들어보기 (いえ · ねこ · ありがとう)</button></section>
       ${voicePicker()}
       <section class="card"><h2>이 기기에서</h2>
         <div class="setting"><span>듣기 (일본어 음성)</span><b>${caps.tts ? '사용 가능' : '사용 불가'}</b></div>
@@ -478,7 +478,7 @@
       GQ.speech.setJoin(state.settings.joinKana); save(); renderOpts();
     });
     app.querySelector('#trywords').onclick = async () => {
-      for (const w of ['いえ', 'ねこ', 'ラーメン']) { await GQ.speech.say(w); await new Promise(r => setTimeout(r, 350)); }
+      for (const w of ['いえ', 'ねこ', 'ありがとう']) { await GQ.speech.say(w); await new Promise(r => setTimeout(r, 350)); }
     };
     app.querySelector('#diag').onclick = () => {
       const pre = app.querySelector('#diagout'); pre.hidden = false; pre.textContent = '[사람 목소리 녹음]\n';
