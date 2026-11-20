@@ -117,17 +117,25 @@
   // 지금 울리거나 예약된 소리 전부 (화면을 넘기면 한꺼번에 멈춤)
   const active = new Set();
   let token = 0;
-  function startSource(ctx, buf, when, offset, dur, envelope) {
+  // 소리를 0에서 갑자기 켜거나 뚝 끊으면 스피커에서 "치직" 잡음이 나서, 항상 짧게 페이드
+  const STOP_FADE = 0.02;
+  function envelopeFor(dur, joined) {
+    let fadeIn = joined ? 0.025 : 0.01, fadeOut = joined ? 0.08 : 0.03;
+    const room = Math.max(0, dur);
+    if (fadeIn + fadeOut > room) { const k = room / (fadeIn + fadeOut); fadeIn *= k; fadeOut *= k; }
+    return { fadeIn, fadeOut };
+  }
+  function startSource(ctx, buf, when, offset, dur, joined) {
     prepBuf(buf);
+    when = Math.max(when, ctx.currentTime + 0.005);
     const g = ctx.createGain(); g.connect(ctx.destination);
-    const peak = buf.__gain;
-    if (envelope) { // 앞뒤를 부드럽게: 25ms 커지고 끝 80ms 동안 줄어듦
-      g.gain.setValueAtTime(0, when);
-      g.gain.linearRampToValueAtTime(peak, when + 0.025);
-      g.gain.setValueAtTime(peak, Math.max(when + 0.03, when + dur - 0.08));
-      g.gain.linearRampToValueAtTime(0, when + dur);
-    } else g.gain.value = peak;
+    const peak = buf.__gain, env = envelopeFor(dur, joined);
+    g.gain.setValueAtTime(0, when);
+    g.gain.linearRampToValueAtTime(peak, when + env.fadeIn);
+    g.gain.setValueAtTime(peak, when + dur - env.fadeOut);
+    g.gain.linearRampToValueAtTime(0, when + dur);
     const s = ctx.createBufferSource(); s.buffer = buf; s.connect(g);
+    s.__g = g;
     s.onended = () => active.delete(s);
     active.add(s);
     s.start(when, offset, dur);
@@ -136,7 +144,16 @@
   function stop() {
     token++;
     clearTimeout(pendingT);
-    active.forEach(s => { try { s.stop(); } catch (e) {} });
+    const ctx = actx;
+    active.forEach(s => {
+      try {
+        if (ctx && s.__g) { // 뚝 끊지 않고 0.02초 동안 줄인 뒤 멈춤
+          const now = ctx.currentTime, gn = s.__g.gain;
+          gn.cancelScheduledValues(now); gn.setValueAtTime(gn.value, now); gn.linearRampToValueAtTime(0, now + STOP_FADE);
+          s.stop(now + STOP_FADE + 0.01);
+        } else s.stop();
+      } catch (e) {}
+    });
     active.clear();
     try { if (window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending)) speechSynthesis.cancel(); } catch (e) {}
   }
@@ -319,5 +336,5 @@
     } catch (e) { out('예외: ' + e.message); }
   }
   function voices() { return window.speechSynthesis ? (speechSynthesis.getVoices() || []) : []; }
-  GQ.speech = { playbackSession, setJoin, setWordClips, wordClipKeys, sourceFor, stop, _activeCount: () => active.size, wordPlan, trimBounds, diagnoseClip, setClips, clipKeys, clipFor, preload, chooseVoice, setPreferred, spoken, diagnose, voices, currentVoice: () => voice, capsOf, matchHeard, init, caps, unlock, say, listen, isBroken: () => asrBroken };
+  GQ.speech = { envelopeFor, STOP_FADE, playbackSession, setJoin, setWordClips, wordClipKeys, sourceFor, stop, _activeCount: () => active.size, wordPlan, trimBounds, diagnoseClip, setClips, clipKeys, clipFor, preload, chooseVoice, setPreferred, spoken, diagnose, voices, currentVoice: () => voice, capsOf, matchHeard, init, caps, unlock, say, listen, isBroken: () => asrBroken };
 })();
