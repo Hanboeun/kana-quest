@@ -67,11 +67,10 @@ function headGeometry() {
   const p = geo.attributes.position, v = new THREE.Vector3();
   for (let i = 0; i < p.count; i++) {
     v.fromBufferAttribute(p, i);
-    // 아래쪽(y -0.15 ~ -0.75)에서 가장 많이, 정수리·바닥 쪽은 그대로
-    const low = ss(0.1, -0.35, v.y) * (1 - ss(-0.7, -0.98, v.y));
-    const front = ss(-0.35, 0.75, v.z);              // 앞쪽일수록 많이 (옆 볼도 조금)
-    const r = 1 + 0.2 * low * front;
-    p.setXYZ(i, v.x * (1 + 0.12 * low * front), v.y * (1 + 0.07 * low * front), v.z * r);
+    // 턱만: 입 아래(y -0.5 아래)에서부터 통통하게. 코·입 높이(y -0.3 위)는 그대로
+    const low = ss(-0.42, -0.68, v.y) * (1 - ss(-0.9, -0.99, v.y));
+    const front = ss(0.05, 0.85, v.z);               // 얼굴 정면 쪽만
+    p.setXYZ(i, v.x * (1 + 0.06 * low * front), v.y * (1 + 0.08 * low * front), v.z * (1 + 0.22 * low * front));
   }
   geo.computeVertexNormals();
   return (headGeo = geo);
