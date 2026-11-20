@@ -37,7 +37,28 @@
     const c = capsOf(window);
     return { tts: c.tts, asr: !asrBroken && (!!dictation || c.asr) };
   }
+  // 아이폰 무음 스위치를 켜도 소리가 나게: "음악 앱처럼 재생"으로 알림 (iOS 17 이상 Safari)
+  function playbackSession(nav) {
+    try { if (nav && nav.audioSession) { nav.audioSession.type = 'playback'; return true; } } catch (e) {}
+    return false;
+  }
+  // 예전 iOS용: 소리 없는 오디오를 계속 틀어두면 웹 소리가 '미디어 재생'으로 바뀌어 무음 모드에서도 들림
+  let silentEl = null;
+  function silentLoop() {
+    if (silentEl) return;
+    try {
+      const sr = 8000, n = sr / 2, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+      const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+      w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+      v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
+      silentEl = new Audio(URL.createObjectURL(new Blob([buf], { type: 'audio/wav' })));
+      silentEl.loop = true; silentEl.setAttribute('playsinline', '');
+      const p = silentEl.play(); if (p && p.catch) p.catch(() => { silentEl = null; });
+    } catch (e) { silentEl = null; }
+  }
+  playbackSession(typeof navigator !== 'undefined' ? navigator : null);
   function unlock() {
+    if (!playbackSession(navigator) && /iPhone|iPad|iPod/.test(navigator.userAgent)) silentLoop();
     try { // 아이폰은 첫 터치 때 오디오를 깨워둬야 나중에 자동 재생이 됨
       const ctx = audioCtx();
       if (ctx) { if (ctx.state === 'suspended') ctx.resume(); const b = ctx.createBuffer(1, 1, 22050); const s = ctx.createBufferSource(); s.buffer = b; s.connect(ctx.destination); s.start(0); }
@@ -298,5 +319,5 @@
     } catch (e) { out('예외: ' + e.message); }
   }
   function voices() { return window.speechSynthesis ? (speechSynthesis.getVoices() || []) : []; }
-  GQ.speech = { setJoin, setWordClips, wordClipKeys, sourceFor, stop, _activeCount: () => active.size, wordPlan, trimBounds, diagnoseClip, setClips, clipKeys, clipFor, preload, chooseVoice, setPreferred, spoken, diagnose, voices, currentVoice: () => voice, capsOf, matchHeard, init, caps, unlock, say, listen, isBroken: () => asrBroken };
+  GQ.speech = { playbackSession, setJoin, setWordClips, wordClipKeys, sourceFor, stop, _activeCount: () => active.size, wordPlan, trimBounds, diagnoseClip, setClips, clipKeys, clipFor, preload, chooseVoice, setPreferred, spoken, diagnose, voices, currentVoice: () => voice, capsOf, matchHeard, init, caps, unlock, say, listen, isBroken: () => asrBroken };
 })();
