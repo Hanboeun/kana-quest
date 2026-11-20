@@ -216,7 +216,19 @@
   let wordClips = new Set(GQ.wordAudio || []);
   function setWordClips(list) { wordClips = new Set(list || []); }
   function wordClipKeys() { return [...wordClips]; }
+  // AI 목소리 (Azure 신경망 음성으로 미리 만든 파일): 고른 목소리에 있으면 먼저 씀
+  let ai = GQ.aiVoices || {}, voiceSel = 'nanami';
+  function setAiClips(v) { ai = v || {}; }
+  function setVoice(v) { voiceSel = v || 'nanami'; }
+  function aiFor(text) {
+    const v = ai[voiceSel]; if (!v) return null;
+    if (!v._k) { v._k = new Set(v.kana || []); v._w = new Set(v.words || []); }
+    const k = GQ.data && GQ.data.byChar.get(text);
+    if (k) { const key = k.id.slice(2); return v._k.has(key) ? { type: 'kana', url: 'audio/v/' + voiceSel + '/' + key + '.mp3' } : null; }
+    return v._w.has(text) ? { type: 'word', url: 'audio/v/' + voiceSel + '/w/' + encodeURIComponent(text) + '.mp3' } : null;
+  }
   function sourceFor(text) {
+    if (voiceSel !== 'fukujin') { const a = aiFor(text); if (a) return a; }
     const k = clipFor(text); if (k) return { type: 'kana', url: k };
     if (wordClips.has(text)) return { type: 'word', url: 'audio/w/' + encodeURIComponent(text) + '.mp3' };
     if (join) { const p = wordPlan(text); if (p) return { type: 'join', plan: p }; }
@@ -336,5 +348,5 @@
     } catch (e) { out('예외: ' + e.message); }
   }
   function voices() { return window.speechSynthesis ? (speechSynthesis.getVoices() || []) : []; }
-  GQ.speech = { envelopeFor, STOP_FADE, playbackSession, setJoin, setWordClips, wordClipKeys, sourceFor, stop, _activeCount: () => active.size, wordPlan, trimBounds, diagnoseClip, setClips, clipKeys, clipFor, preload, chooseVoice, setPreferred, spoken, diagnose, voices, currentVoice: () => voice, capsOf, matchHeard, init, caps, unlock, say, listen, isBroken: () => asrBroken };
+  GQ.speech = { setAiClips, setVoice, envelopeFor, STOP_FADE, playbackSession, setJoin, setWordClips, wordClipKeys, sourceFor, stop, _activeCount: () => active.size, wordPlan, trimBounds, diagnoseClip, setClips, clipKeys, clipFor, preload, chooseVoice, setPreferred, spoken, diagnose, voices, currentVoice: () => voice, capsOf, matchHeard, init, caps, unlock, say, listen, isBroken: () => asrBroken };
 })();

@@ -2,7 +2,7 @@
 (function () {
   const D = GQ.data;
   const SCRIPT_BASE = document.currentScript && document.currentScript.src;
-  const APP_VERSION = '28';
+  const APP_VERSION = '29';
   const app = document.getElementById('app');
   let state = null, store = null, caps = { tts: false, asr: false }, tab = 'home', toastT = null, mascotN = 0;
   const now = () => Date.now();
@@ -535,14 +535,17 @@
     const s = v.voiceURI + ' ' + v.name;
     return /premium/i.test(s) ? '고음질' : /enhanced|향상/i.test(s) ? '향상된 음질' : /compact/i.test(s) ? '기본 음질' : '';
   }
-  function voicePicker() {
-    const ja = GQ.speech.voices().filter(v => /^ja/i.test(v.lang));
-    if (!ja.length) return '';
-    const cur = GQ.speech.currentVoice();
-    return `<section class="card"><h2>단어 읽는 목소리</h2><p class="sub">글자 하나는 사람 목소리 녹음으로 나와요. 여기서는 ねこ 같은 단어를 읽는 기계 음성을 골라요.</p>
-      <div class="pieces" style="grid-template-columns:1fr 1fr">${ja.map(v => `<button class="piece" data-vuri="${esc(v.voiceURI)}" aria-pressed="${!!cur && cur.voiceURI === v.voiceURI}" style="font-size:14px;padding:10px">
-        <b>${esc(v.name)}</b><span class="sub">${voiceQuality(v) || esc(v.lang)}</span></button>`).join('')}</div>
-      <p class="fine">아이폰 설정 → 손쉬운 사용 → 읽기 및 말하기 → 음성 → 일본어에서 '향상된 음질'이나 '고음질' 목소리를 내려받으면 여기에 나타날 수 있어요.</p></section>`;
+  // 발음 목소리 고르기: AI 목소리 3 + 사람 녹음
+  const VOICES = [
+    ['nanami', '나나미', '차분한 여자 목소리 (AI)'],
+    ['keita', '케이타', '남자 목소리 (AI)'],
+    ['aoi', '아오이', '밝은 여자 목소리 (AI)'],
+    ['fukujin', '사람 녹음', '실제 일본인 녹음 (일부 글자·단어만)'],
+  ];
+  function voiceChooser() {
+    const cur = state.settings.voice || 'nanami';
+    return `<section class="card"><h2>발음 목소리</h2><p class="sub">눌러서 들어보고 마음에 드는 목소리를 고르세요. 글자와 단어 모두 이 목소리로 읽어요.</p>
+      <div class="pieces" style="grid-template-columns:1fr 1fr">${VOICES.map(([id, name, sub]) => `<button class="piece" data-voice="${id}" aria-pressed="${cur === id}" style="padding:10px;font-size:14px"><b>${name}</b><span class="sub">${sub}</span></button>`).join('')}</div></section>`;
   }
   function renderOpts() {
     const sw = (k, label, sub) => `<div class="setting"><div><b>${label}</b>${sub ? `<br><span class="sub">${sub}</span>` : ''}</div>
@@ -550,9 +553,8 @@
     const c = GQ.speech.caps();
     shell(`<h1>설정</h1><p class="sub">앱 버전 ${APP_VERSION}</p>
       <section class="card">${sw('hangul', '한글 발음 같이 보기', '로마자 옆에 한글 발음을 보여줘요')}${sw('sound', '소리', '문제를 풀 때 일본어 발음을 들려줘요')}
-        ${sw('joinKana', '녹음 없는 단어는 글자 녹음 이어 붙이기', '대부분의 단어는 사람이 단어째 녹음한 소리로 나와요. 녹음이 없는 단어만, 켜면 글자 녹음을 이어 붙이고 끄면 기계 음성으로 읽어요')}
-        <button class="btn ghost small" id="trywords">단어 소리 들어보기 (いえ · ねこ · ありがとう)</button></section>
-      ${voicePicker()}
+</section>
+      ${voiceChooser()}
       <section class="card"><h2>이 기기에서</h2>
         <div class="setting"><span>듣기 (일본어 음성)</span><b>${caps.tts ? '사용 가능' : '사용 불가'}</b></div>
         <div class="setting"><span>말하기 채점</span><b>${c.asr ? '음성 인식' : '스스로 채점'}</b></div>
@@ -565,19 +567,17 @@
         <div id="reset"><button class="btn ghost small" id="r1">기록 처음부터 다시</button></div></section>
       <section class="card"><h2>도움말</h2><p class="sub">· 레슨을 한 번 끝내면 그 행의 보스에 도전할 수 있고, 보스를 깨면 다음 행이 열려요.<br>· 리그는 매주 월요일 0시(한국 시간)에 새로 시작해요.<br>· 틀린 글자는 10분 뒤, 맞힌 글자는 1일, 3일, 7일… 간격으로 복습에 나와요.</p>
         <p class="fine">획순 데이터: <a href="https://kanjivg.tagaini.net/" target="_blank" rel="noopener">KanjiVG</a> (© Ulrich Apel, CC BY-SA 3.0)</p>
-        <p class="fine">글자 발음 녹음: Fukujinzuke, <a href="https://lingualibre.org/" target="_blank" rel="noopener">Lingua Libre</a> / Wikimedia Commons (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>). 앱에 맞게 그대로 사용. 단어 발음은 기기의 음성 합성.</p></section>`);
-    app.querySelectorAll('[data-vuri]').forEach(b => b.onclick = () => {
-      state.settings.voiceURI = b.dataset.vuri; GQ.speech.setPreferred(b.dataset.vuri); save();
-      GQ.speech.say('あいうえお。ねこ', { raw: true, rate: 0.8 });
-      app.querySelectorAll('[data-vuri]').forEach(x => x.setAttribute('aria-pressed', x === b));
+        <p class="fine">글자 발음 녹음: Fukujinzuke, <a href="https://lingualibre.org/" target="_blank" rel="noopener">Lingua Libre</a> / Wikimedia Commons (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>). 앱에 맞게 그대로 사용.</p>
+        <p class="fine">AI 목소리(나나미·케이타·아오이): Microsoft Azure 음성 합성으로 만든 소리.</p></section>`);
+    app.querySelectorAll('[data-voice]').forEach(b => b.onclick = async () => {
+      state.settings.voice = b.dataset.voice; GQ.speech.setVoice(b.dataset.voice); save();
+      app.querySelectorAll('[data-voice]').forEach(x => x.setAttribute('aria-pressed', x === b));
+      for (const w of ['あ', 'ねこ']) { await GQ.speech.say(w); await new Promise(r => setTimeout(r, 300)); }
     });
     app.querySelectorAll('[data-s]').forEach(b => b.onclick = () => {
       state.settings[b.dataset.s] = !state.settings[b.dataset.s];
       GQ.speech.setJoin(state.settings.joinKana); save(); renderOpts();
     });
-    app.querySelector('#trywords').onclick = async () => {
-      for (const w of ['いえ', 'ねこ', 'ありがとう']) { await GQ.speech.say(w); await new Promise(r => setTimeout(r, 350)); }
-    };
     app.querySelector('#diag').onclick = () => {
       const pre = app.querySelector('#diagout'); pre.hidden = false; pre.textContent = '[사람 목소리 녹음]\n';
       GQ.speech.diagnoseClip((line) => { pre.textContent += line + '\n'; });
@@ -659,6 +659,7 @@
     state = GQ.chest.migrate(state, now()); // 예전 조각 → 상자, 캐릭터 데이터 정리
     GQ.speech.setPreferred(state.settings.voiceURI);
     GQ.speech.setJoin(state.settings.joinKana);
+    GQ.speech.setVoice(state.settings.voice);
     refreshDaily(); save();
     render();
     document.addEventListener('pointerdown', () => GQ.speech.unlock(), { once: true });
