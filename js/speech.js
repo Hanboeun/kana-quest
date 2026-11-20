@@ -152,8 +152,9 @@
   }
   function preload(texts) {
     for (const t of texts) {
-      const c = clipFor(t); if (c) { loadClip(c).catch(() => {}); continue; }
-      const p = wordPlan(t); if (p) p.forEach(x => x.clip && loadClip(x.clip).catch(() => {}));
+      const s = sourceFor(t);
+      if (s.url) loadClip(s.url).catch(() => {});
+      else if (s.plan) s.plan.forEach(x => x.clip && loadClip(x.clip).catch(() => {}));
     }
   }
   function playClip(url) {
@@ -170,8 +171,19 @@
     }));
   }
 
-  let pendingT = null, wordHuman = true;
-  function setWordHuman(v) { wordHuman = v !== false; }
+  let pendingT = null, join = false;
+  // 녹음 없는 단어를 글자 녹음 이어 붙이기로 읽을지 (기본: 끔 → 기계 음성)
+  function setJoin(v) { join = !!v; }
+  // 단어 통째 녹음 (같은 화자 Fukujinzuke)
+  let wordClips = new Set(GQ.wordAudio || []);
+  function setWordClips(list) { wordClips = new Set(list || []); }
+  function wordClipKeys() { return [...wordClips]; }
+  function sourceFor(text) {
+    const k = clipFor(text); if (k) return { type: 'kana', url: k };
+    if (wordClips.has(text)) return { type: 'word', url: 'audio/w/' + encodeURIComponent(text) + '.mp3' };
+    if (join) { const p = wordPlan(text); if (p) return { type: 'join', plan: p }; }
+    return { type: 'tts' };
+  }
   // opts.delay: 화면이 바뀌자마자 나오지 않도록 자동 재생은 잠깐 기다렸다가
   function say(text, opts) {
     opts = opts || {};
@@ -193,12 +205,9 @@
         } catch (e) { resolve(); }
       };
       // 녹음이 있는 글자는 사람 목소리로, 실패하면 기계 음성으로
-      const human = !opts.raw && !opts.voiceName;
-      const clip = human && clipFor(text);
-      const plan = human && wordHuman && !clip && wordPlan(text);
-      const play = !clip && !plan ? go : () => {
-        try { if (window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending)) speechSynthesis.cancel(); } catch (e) {}
-        (clip ? playClip(clip) : playPlan(plan)).then(() => resolve(), () => go());
+      const src = (opts.raw || opts.voiceName) ? { type: 'tts' } : sourceFor(text);
+      const play = src.type === 'tts' ? go : () => {
+        (src.type === 'join' ? playPlan(src.plan) : playClip(src.url)).then(() => resolve(), () => go());
       };
       if (opts.delay) pendingT = setTimeout(play, opts.delay); else play();
     });
@@ -289,5 +298,5 @@
     } catch (e) { out('예외: ' + e.message); }
   }
   function voices() { return window.speechSynthesis ? (speechSynthesis.getVoices() || []) : []; }
-  GQ.speech = { setWordHuman, stop, _activeCount: () => active.size, wordPlan, trimBounds, diagnoseClip, setClips, clipKeys, clipFor, preload, chooseVoice, setPreferred, spoken, diagnose, voices, currentVoice: () => voice, capsOf, matchHeard, init, caps, unlock, say, listen, isBroken: () => asrBroken };
+  GQ.speech = { setJoin, setWordClips, wordClipKeys, sourceFor, stop, _activeCount: () => active.size, wordPlan, trimBounds, diagnoseClip, setClips, clipKeys, clipFor, preload, chooseVoice, setPreferred, spoken, diagnose, voices, currentVoice: () => voice, capsOf, matchHeard, init, caps, unlock, say, listen, isBroken: () => asrBroken };
 })();

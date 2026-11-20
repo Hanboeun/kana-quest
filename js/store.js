@@ -15,7 +15,7 @@
       finalBoss: { cleared: false, best: null },
       owned: [],
       equipped: { hat: null, outfit: null, item: null, bg: null },
-      settings: { hangul: false, sound: true, voiceURI: '', wordHuman: true },
+      settings: { hangul: false, sound: true, voiceURI: '', joinKana: false },
       stats: { answered: 0, correct: 0, speak: 0, write: 0 },
       pendingResult: null,
     };

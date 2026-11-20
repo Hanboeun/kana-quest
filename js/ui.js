@@ -1,7 +1,7 @@
 // 화면
 (function () {
   const D = GQ.data;
-  const APP_VERSION = '13';
+  const APP_VERSION = '14';
   const app = document.getElementById('app');
   let state = null, store = null, caps = { tts: false, asr: false }, tab = 'home', toastT = null, mascotN = 0;
   const now = () => Date.now();
@@ -189,7 +189,7 @@
     const qs = GQ.lesson.build(state, { mode, groupId: gid, now: t0 }, { tts: caps.tts, asr: true }, Math.random);
     if (!qs.length) { toast('복습할 글자가 아직 없어요. 레슨부터 해봐요'); return; }
     const isBoss = mode === 'boss' || mode === 'final';
-    GQ.speech.preload(qs.map(q => { const k = D.byId.get(q.itemId); return k ? k.char : ''; }));
+    GQ.speech.preload(qs.map(q => { const k = D.byId.get(q.itemId); return k ? k.char : q.kind === 'word' ? q.prompt : ''; }));
     const queue = qs.slice(), answers = [];
     let i = 0, stopAnim = () => {}, timer = null;
     const root = document.createElement('div'); root.className = 'session';
@@ -452,7 +452,7 @@
     const c = GQ.speech.caps();
     shell(`<h1>설정</h1><p class="sub">앱 버전 ${APP_VERSION}</p>
       <section class="card">${sw('hangul', '한글 발음 같이 보기', '로마자 옆에 한글 발음을 보여줘요')}${sw('sound', '소리', '문제를 풀 때 일본어 발음을 들려줘요')}
-        ${sw('wordHuman', '단어도 사람 목소리로', '켜면 글자 녹음을 이어 붙여 읽고, 끄면 기계 음성이 자연스럽게 읽어요')}
+        ${sw('joinKana', '녹음 없는 단어는 글자 녹음 이어 붙이기', '대부분의 단어는 사람이 단어째 녹음한 소리로 나와요. 녹음이 없는 단어만, 켜면 글자 녹음을 이어 붙이고 끄면 기계 음성으로 읽어요')}
         <button class="btn ghost small" id="trywords">단어 소리 들어보기 (いえ · ねこ · ラーメン)</button></section>
       ${voicePicker()}
       <section class="card"><h2>이 기기에서</h2>
@@ -475,7 +475,7 @@
     });
     app.querySelectorAll('[data-s]').forEach(b => b.onclick = () => {
       state.settings[b.dataset.s] = !state.settings[b.dataset.s];
-      GQ.speech.setWordHuman(state.settings.wordHuman); save(); renderOpts();
+      GQ.speech.setJoin(state.settings.joinKana); save(); renderOpts();
     });
     app.querySelector('#trywords').onclick = async () => {
       for (const w of ['いえ', 'ねこ', 'ラーメン']) { await GQ.speech.say(w); await new Promise(r => setTimeout(r, 350)); }
@@ -521,7 +521,7 @@
     caps = GQ.speech.capsOf(window);
     state = await store.load();
     GQ.speech.setPreferred(state.settings.voiceURI);
-    GQ.speech.setWordHuman(state.settings.wordHuman);
+    GQ.speech.setJoin(state.settings.joinKana);
     refreshDaily(); save();
     render();
     document.addEventListener('pointerdown', () => GQ.speech.unlock(), { once: true });
