@@ -1,7 +1,7 @@
 // 화면
 (function () {
   const D = GQ.data;
-  const APP_VERSION = '12';
+  const APP_VERSION = '13';
   const app = document.getElementById('app');
   let state = null, store = null, caps = { tts: false, asr: false }, tab = 'home', toastT = null, mascotN = 0;
   const now = () => Date.now();
@@ -50,7 +50,7 @@
   function sheet(html, onMount) {
     const bg = document.createElement('div'); bg.className = 'sheet-bg';
     bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true">${html}</div>`;
-    const close = () => { bg.remove(); if (bg._stop) bg._stop(); };
+    const close = () => { bg.remove(); if (bg._stop) bg._stop(); GQ.speech.stop(); };
     bg.addEventListener('click', e => { if (e.target === bg || e.target.closest('[data-close]')) close(); });
     document.body.appendChild(bg);
     onMount && onMount(bg.firstElementChild, close, bg);
@@ -78,7 +78,7 @@
     const tabs = [['home', '홈'], ['league', '리그'], ['me', '캐릭터'], ['opts', '설정']];
     app.innerHTML = `<main>${inner}</main><div class="tabbar"><nav aria-label="메뉴">${tabs.map(([k, l]) =>
       `<button data-tab="${k}" ${tab === k ? 'aria-current="page"' : ''}>${ICON[k]}<span>${l}</span></button>`).join('')}</nav></div>`;
-    app.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; refreshDaily(); render(); window.scrollTo(0, 0); });
+    app.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { GQ.speech.stop(); tab = b.dataset.tab; refreshDaily(); render(); window.scrollTo(0, 0); });
   }
   function statusChips() {
     const st = GQ.quests.currentStreak(state, now());
@@ -197,7 +197,7 @@
     document.body.style.overflow = 'hidden';
     const label = mode === 'lesson' ? `레슨 · ${group(gid).title}` : mode === 'review' ? '복습' : mode === 'boss' ? `보스 · ${group(gid).title}` : '최종 보스';
 
-    function quit() { stopAnim(); clearInterval(timer); root.remove(); document.body.style.overflow = ''; render(); }
+    function quit() { stopAnim(); clearInterval(timer); GQ.speech.stop(); root.remove(); document.body.style.overflow = ''; render(); }
     function frame(body, foot) {
       const done = i, total = queue.length;
       root.innerHTML = `<div class="s-top"><button class="x" aria-label="그만하기">${ICON.x}</button><div class="bar"><i style="width:${Math.round(done / total * 100)}%"></i></div></div>
@@ -213,7 +213,7 @@
     }
 
     function next() {
-      stopAnim(); clearInterval(timer);
+      stopAnim(); clearInterval(timer); GQ.speech.stop(); // 앞 화면 소리는 모두 끊기
       if (i >= queue.length) return finishSession();
       const q = queue[i];
       ({ intro: showIntro, read: showChoice, word: showChoice, listen: showChoice, speak: showSpeak, write: showWrite })[q.kind](q);
@@ -451,7 +451,9 @@
       <button class="switch" role="switch" aria-checked="${state.settings[k]}" aria-label="${label}" data-s="${k}"></button></div>`;
     const c = GQ.speech.caps();
     shell(`<h1>설정</h1><p class="sub">앱 버전 ${APP_VERSION}</p>
-      <section class="card">${sw('hangul', '한글 발음 같이 보기', '로마자 옆에 한글 발음을 보여줘요')}${sw('sound', '소리', '문제를 풀 때 일본어 발음을 들려줘요')}</section>
+      <section class="card">${sw('hangul', '한글 발음 같이 보기', '로마자 옆에 한글 발음을 보여줘요')}${sw('sound', '소리', '문제를 풀 때 일본어 발음을 들려줘요')}
+        ${sw('wordHuman', '단어도 사람 목소리로', '켜면 글자 녹음을 이어 붙여 읽고, 끄면 기계 음성이 자연스럽게 읽어요')}
+        <button class="btn ghost small" id="trywords">단어 소리 들어보기 (いえ · ねこ · ラーメン)</button></section>
       ${voicePicker()}
       <section class="card"><h2>이 기기에서</h2>
         <div class="setting"><span>듣기 (일본어 음성)</span><b>${caps.tts ? '사용 가능' : '사용 불가'}</b></div>
@@ -471,7 +473,13 @@
       GQ.speech.say('あいうえお。ねこ', { raw: true, rate: 0.8 });
       app.querySelectorAll('[data-vuri]').forEach(x => x.setAttribute('aria-pressed', x === b));
     });
-    app.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { state.settings[b.dataset.s] = !state.settings[b.dataset.s]; save(); renderOpts(); });
+    app.querySelectorAll('[data-s]').forEach(b => b.onclick = () => {
+      state.settings[b.dataset.s] = !state.settings[b.dataset.s];
+      GQ.speech.setWordHuman(state.settings.wordHuman); save(); renderOpts();
+    });
+    app.querySelector('#trywords').onclick = async () => {
+      for (const w of ['いえ', 'ねこ', 'ラーメン']) { await GQ.speech.say(w); await new Promise(r => setTimeout(r, 350)); }
+    };
     app.querySelector('#diag').onclick = () => {
       const pre = app.querySelector('#diagout'); pre.hidden = false; pre.textContent = '[사람 목소리 녹음]\n';
       GQ.speech.diagnoseClip((line) => { pre.textContent += line + '\n'; });
@@ -513,6 +521,7 @@
     caps = GQ.speech.capsOf(window);
     state = await store.load();
     GQ.speech.setPreferred(state.settings.voiceURI);
+    GQ.speech.setWordHuman(state.settings.wordHuman);
     refreshDaily(); save();
     render();
     document.addEventListener('pointerdown', () => GQ.speech.unlock(), { once: true });

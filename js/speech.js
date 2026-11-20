@@ -62,15 +62,16 @@
     if (!clips.has(key) && SAME[key]) key = SAME[key];
     return clips.has(key) ? 'audio/' + key + '.wav' : null;
   }
-  let actx = null, curSrc = null;
+  let actx = null;
   const bufs = new Map();
   function audioCtx() {
     if (!actx) { const C = window.AudioContext || window.webkitAudioContext; if (!C) return null; try { actx = new C(); } catch (e) { return null; } }
     return actx;
   }
   function loadClip(url) {
-    if (bufs.has(url)) return bufs.get(url);
     const ctx = audioCtx(); if (!ctx) return Promise.reject(new Error('no audio'));
+    if (GQ.speech && GQ.speech._testBuffer) { const b = ctx.createBuffer(1, 8000, 16000); b.getChannelData(0).fill(0.2); return Promise.resolve(b); }
+    if (bufs.has(url)) return bufs.get(url);
     const p = fetch(url).then(r => { if (!r.ok) throw new Error('http ' + r.status); return r.arrayBuffer(); })
       .then(ab => new Promise((res, rej) => ctx.decodeAudioData(ab, res, rej)));
     bufs.set(url, p); p.catch(() => bufs.delete(url));
@@ -92,22 +93,46 @@
     }
     return plan;
   }
+  // 지금 울리거나 예약된 소리 전부 (화면을 넘기면 한꺼번에 멈춤)
+  const active = new Set();
+  let token = 0;
+  function startSource(ctx, buf, when, offset, dur, envelope) {
+    prepBuf(buf);
+    const g = ctx.createGain(); g.connect(ctx.destination);
+    const peak = buf.__gain;
+    if (envelope) { // 앞뒤를 부드럽게: 25ms 커지고 끝 80ms 동안 줄어듦
+      g.gain.setValueAtTime(0, when);
+      g.gain.linearRampToValueAtTime(peak, when + 0.025);
+      g.gain.setValueAtTime(peak, Math.max(when + 0.03, when + dur - 0.08));
+      g.gain.linearRampToValueAtTime(0, when + dur);
+    } else g.gain.value = peak;
+    const s = ctx.createBufferSource(); s.buffer = buf; s.connect(g);
+    s.onended = () => active.delete(s);
+    active.add(s);
+    s.start(when, offset, dur);
+    return s;
+  }
+  function stop() {
+    token++;
+    clearTimeout(pendingT);
+    active.forEach(s => { try { s.stop(); } catch (e) {} });
+    active.clear();
+    try { if (window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending)) speechSynthesis.cancel(); } catch (e) {}
+  }
   function playPlan(plan) {
     const ctx = audioCtx(); if (!ctx) return Promise.reject(new Error('no audio'));
     if (ctx.state === 'suspended') ctx.resume();
+    const my = token;
     return Promise.all(plan.map(p => p.clip ? loadClip(p.clip) : null)).then(bufsArr => new Promise(res => {
-      if (curSrc) { try { curSrc.stop(); } catch (e) {} }
-      let t = ctx.currentTime + 0.03, last = null;
+      if (my !== token) return res(); // 그사이 화면이 넘어감
+      let t = ctx.currentTime + 0.03;
       plan.forEach((p, i) => {
         if (p.pause) { t += p.pause; return; }
         const buf = bufsArr[i]; prepBuf(buf);
-        const g = ctx.createGain(); g.gain.value = buf.__gain; g.connect(ctx.destination);
-        const s = ctx.createBufferSource(); s.buffer = buf; s.connect(g);
         const dur = buf.__trim.end - buf.__trim.start;
-        s.start(t, buf.__trim.start, dur); last = s;
-        t += Math.max(0.12, dur - 0.06); // 살짝 겹쳐서 덜 끊기게
+        startSource(ctx, buf, t, buf.__trim.start, dur, true);
+        t += Math.max(0.14, dur - 0.1); // 앞 글자가 줄어드는 동안 다음 글자가 겹쳐 들어옴
       });
-      curSrc = last;
       setTimeout(res, (t - ctx.currentTime) * 1000 + 300);
     }));
   }
@@ -134,24 +159,23 @@
   function playClip(url) {
     const ctx = audioCtx(); if (!ctx) return Promise.reject(new Error('no audio'));
     if (ctx.state === 'suspended') ctx.resume();
+    const my = token;
     return loadClip(url).then(buf => new Promise(res => {
-      if (curSrc) { try { curSrc.stop(); } catch (e) {} }
-      // 녹음마다 크기가 달라서 가장 큰 소리를 0.8에 맞춤
-      if (buf.__gain === undefined) { const d = buf.getChannelData(0); let mx = 0; for (let i = 0; i < d.length; i++) { const v = d[i] < 0 ? -d[i] : d[i]; if (v > mx) mx = v; } buf.__gain = mx > 0.01 ? Math.min(4, 0.8 / mx) : 1; }
-      const g = ctx.createGain(); g.gain.value = buf.__gain; g.connect(ctx.destination);
-      if (!buf.__trim) buf.__trim = trimBounds(buf.getChannelData(0), buf.sampleRate);
+      if (my !== token) return res();
+      prepBuf(buf); // 녹음마다 크기가 달라서 가장 큰 소리를 0.8에 맞춤
       const t = buf.__trim;
-      const s = ctx.createBufferSource(); s.buffer = buf; s.connect(g);
-      s.onended = () => res(); s.start(0, t.start, t.end - t.start); curSrc = s;
+      const s = startSource(ctx, buf, 0, t.start, t.end - t.start, false);
+      const prevEnd = s.onended; s.onended = () => { prevEnd(); res(); };
       setTimeout(res, (t.end - t.start) * 1000 + 500);
     }));
   }
 
-  let pendingT = null;
+  let pendingT = null, wordHuman = true;
+  function setWordHuman(v) { wordHuman = v !== false; }
   // opts.delay: 화면이 바뀌자마자 나오지 않도록 자동 재생은 잠깐 기다렸다가
   function say(text, opts) {
     opts = opts || {};
-    clearTimeout(pendingT);
+    stop(); // 새 소리는 앞 소리를 모두 끊고 시작
     return new Promise((resolve) => {
       const go = () => {
         if (!window.speechSynthesis) return resolve();
@@ -171,7 +195,7 @@
       // 녹음이 있는 글자는 사람 목소리로, 실패하면 기계 음성으로
       const human = !opts.raw && !opts.voiceName;
       const clip = human && clipFor(text);
-      const plan = human && !clip && wordPlan(text);
+      const plan = human && wordHuman && !clip && wordPlan(text);
       const play = !clip && !plan ? go : () => {
         try { if (window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending)) speechSynthesis.cancel(); } catch (e) {}
         (clip ? playClip(clip) : playPlan(plan)).then(() => resolve(), () => go());
@@ -265,5 +289,5 @@
     } catch (e) { out('예외: ' + e.message); }
   }
   function voices() { return window.speechSynthesis ? (speechSynthesis.getVoices() || []) : []; }
-  GQ.speech = { wordPlan, trimBounds, diagnoseClip, setClips, clipKeys, clipFor, preload, chooseVoice, setPreferred, spoken, diagnose, voices, currentVoice: () => voice, capsOf, matchHeard, init, caps, unlock, say, listen, isBroken: () => asrBroken };
+  GQ.speech = { setWordHuman, stop, _activeCount: () => active.size, wordPlan, trimBounds, diagnoseClip, setClips, clipKeys, clipFor, preload, chooseVoice, setPreferred, spoken, diagnose, voices, currentVoice: () => voice, capsOf, matchHeard, init, caps, unlock, say, listen, isBroken: () => asrBroken };
 })();
