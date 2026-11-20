@@ -340,5 +340,17 @@
   }
   GQ.rand = { hash, rng, shuffle };
 
-  GQ.data = { kana, groups, byId, byChar, tokenize, romajiOf, words, confusables, leagues, botNames, cosmetics, toKata };
+  // 카타카나(ー·작은 ッ 포함) 덩어리와 나머지를 나눔: 카타카나만 다른 글꼴을 입히려고
+  function splitKata(text) {
+    const out = [], re = /[ァ-ヺー-ヾ]+/g;
+    let last = 0, m;
+    while ((m = re.exec(text))) {
+      if (m.index > last) out.push({ t: text.slice(last, m.index), kata: false });
+      out.push({ t: m[0], kata: true }); last = m.index + m[0].length;
+    }
+    if (last < text.length) out.push({ t: text.slice(last), kata: false });
+    return out;
+  }
+
+  GQ.data = { splitKata, kana, groups, byId, byChar, tokenize, romajiOf, words, confusables, leagues, botNames, cosmetics, toKata };
 })();

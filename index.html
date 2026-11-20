@@ -19,7 +19,8 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+KR:wght@400;500;700;900&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
 /* Layout: 원고지 한 칸 같은 정사각 글자판이 중심. 위는 상태 띠, 아래는 엄지로 누르는 탭/선택 버튼. */
 :root {
@@ -28,8 +29,10 @@
   --shu: #d4432a; --ok: #23824a; --ok-soft: #e1f3e7; --bad: #c4361e; --bad-soft: #fbe5df;
   --gold: #b97c00; --gold-soft: #fff1cc;
   --ghost: #e5e7f2; --grid: #cfd4e8; --hint: #f0b444;
-  --f-kana: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Hiragino Sans", "Yu Gothic", sans-serif;
-  --f-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  /* 히라가나: 둥근 Zen Maru Gothic / 카타카나: 반듯한 Zen Kaku Gothic New / 한국어: 깔끔한 Pretendard */
+  --f-kana: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Pretendard Variable", "Hiragino Sans", "Yu Gothic", sans-serif;
+  --f-kata: "Zen Kaku Gothic New", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+  --f-body: "Pretendard Variable", Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
   --r: 14px; --tab-h: 62px;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
@@ -51,6 +54,7 @@ body { background: var(--paper); color: var(--ink); font-family: var(--f-body); 
 button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; }
 button:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--ai); outline-offset: 2px; }
 .kana { font-family: var(--f-kana); font-weight: 700; }
+.kt { font-family: var(--f-kata); }
 #app { max-width: 520px; margin: 0 auto; min-height: 100%; }
 main { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 12px calc(var(--tab-h) + 24px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 14px; }
 
@@ -233,17 +237,17 @@ h1 { font-size: 22px; margin: 4px 0 0; text-wrap: balance; }
 <div id="app"><div class="loading"><div><div class="kana">あ</div>불러오는 중…</div></div></div>
 
 <script>window.GQ = window.GQ || {};</script>
-<script src="js/time.js?v=db7d31b"></script>
-<script src="js/data.js?v=db7d31b"></script>
-<script src="js/strokes.js?v=db7d31b"></script>
-<script src="js/store.js?v=db7d31b"></script>
-<script src="js/srs.js?v=db7d31b"></script>
-<script src="js/league.js?v=db7d31b"></script>
-<script src="js/quests.js?v=db7d31b"></script>
-<script src="js/lesson.js?v=db7d31b"></script>
-<script src="js/writing.js?v=db7d31b"></script>
-<script src="js/audio-index.js?v=db7d31b"></script>
-<script src="js/speech.js?v=db7d31b"></script>
-<script src="js/ui.js?v=db7d31b"></script>
+<script src="js/time.js?v=d367e81"></script>
+<script src="js/data.js?v=d367e81"></script>
+<script src="js/strokes.js?v=d367e81"></script>
+<script src="js/store.js?v=d367e81"></script>
+<script src="js/srs.js?v=d367e81"></script>
+<script src="js/league.js?v=d367e81"></script>
+<script src="js/quests.js?v=d367e81"></script>
+<script src="js/lesson.js?v=d367e81"></script>
+<script src="js/writing.js?v=d367e81"></script>
+<script src="js/audio-index.js?v=d367e81"></script>
+<script src="js/speech.js?v=d367e81"></script>
+<script src="js/ui.js?v=d367e81"></script>
 </body>
 </html>

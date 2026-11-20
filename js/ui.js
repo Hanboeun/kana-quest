@@ -1,7 +1,7 @@
 // 화면
 (function () {
   const D = GQ.data;
-  const APP_VERSION = '18';
+  const APP_VERSION = '19';
   const app = document.getElementById('app');
   let state = null, store = null, caps = { tts: false, asr: false }, tab = 'home', toastT = null, mascotN = 0;
   const now = () => Date.now();
@@ -528,6 +528,30 @@
       }
     }).catch(() => {});
   }
+
+  // ---------- 카타카나만 반듯한 글꼴로 ----------
+  // 화면에 새로 그려진 글자 중 카타카나 덩어리를 <span class="kt">로 감쌈 (히라가나·한국어는 그대로)
+  function wrapKata(root) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: (n) => (/[ァ-ヺー-ヾ]/.test(n.nodeValue) && n.parentNode && !n.parentNode.closest('.kt, textarea, script, style, svg'))
+        ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT,
+    });
+    const nodes = []; while (walker.nextNode()) nodes.push(walker.currentNode);
+    for (const n of nodes) {
+      const frag = document.createDocumentFragment();
+      for (const p of D.splitKata(n.nodeValue)) {
+        if (p.kata) { const s = document.createElement('span'); s.className = 'kt'; s.textContent = p.t; frag.appendChild(s); }
+        else frag.appendChild(document.createTextNode(p.t));
+      }
+      n.parentNode.replaceChild(frag, n);
+    }
+  }
+  new MutationObserver((muts) => {
+    for (const m of muts) for (const n of m.addedNodes) {
+      if (n.nodeType === 1 && !n.classList.contains('kt')) wrapKata(n);
+      else if (n.nodeType === 3 && n.parentNode && !n.parentNode.closest('.kt')) wrapKata(n.parentNode);
+    }
+  }).observe(document.body, { childList: true, subtree: true });
 
   // ---------- 시작 ----------
   async function boot() {
