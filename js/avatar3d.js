@@ -13,6 +13,7 @@ const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
 const ss = (a, b, t) => { const x = Math.min(1, Math.max(0, (t - a) / (b - a))); return x * x * (3 - 2 * x); };
 const HS = { x: 1.1, y: 0.88, z: 0.96 };   // 얼굴: 앞뒤 도톰, 위아래 납작
 const HEAD_Y = 1.15;
+const HEAD_SCALE = 0.93, HEAD_PIVOT = 0.28; // 얼굴 크기, 줄일 때 기준점(턱 밑)
 
 // ---------- 얼굴 그림 (구의 앞쪽 = 가로 1/4 지점) ----------
 const faceCache = new Map();
@@ -140,10 +141,11 @@ function buildCharacter(look) {
   const hair = mat(hairC, 0.6, { side: THREE.DoubleSide });
   // 머리
   const head = new THREE.Mesh(headGeometry(), new THREE.MeshStandardMaterial({ map: faceTexture(skinC, def(look.eyes).kind || 'basic', def(look.eyeColor).color || '#6b4a32'), roughness: 0.9 }));
-  head.scale.set(HS.x, HS.y, HS.z); head.position.y = HEAD_Y; g.add(head);
+  const hg = new THREE.Group(); // 머리·머리카락·모자·머리 장식
+  head.scale.set(HS.x, HS.y, HS.z); head.position.y = HEAD_Y; hg.add(head);
   const hd = def(look.hair);
-  const hm = new THREE.Mesh(hairGeometry(hd.cut || 'bob'), hair); hm.position.y = HEAD_Y; hm.scale.set(HS.x, HS.y, HS.z); g.add(hm);
-  addHairExtra(g, hd.extra, hair);
+  const hm = new THREE.Mesh(hairGeometry(hd.cut || 'bob'), hair); hm.position.y = HEAD_Y; hm.scale.set(HS.x, HS.y, HS.z); hg.add(hm);
+  addHairExtra(hg, hd.extra, hair);
   // 몸
   const td = def(look.top), bd = def(look.bottom);
   const topMat = td.stripe ? new THREE.MeshStandardMaterial({ map: stripeTexture(td.color, td.stripe), roughness: 0.9 })
@@ -165,8 +167,10 @@ function buildCharacter(look) {
     const leg = cap(0.1, 0.32, bd.kind === 'pants' ? mat(bd.color, 0.85) : skin); leg.position.set(s * 0.16, -1.02, 0); if (!longCover || bd.kind === 'pants') g.add(leg);
     addShoe(g, def(look.shoes), s);
   }
-  if (look.hat) addHat(g, def(look.hat));
-  if (look.acc) addAcc(g, def(look.acc));
+  if (look.hat) addHat(hg, def(look.hat));
+  if (look.acc) addAcc(def(look.acc).kind === 'norigae' ? g : hg, def(look.acc));
+  // 머리 묶음을 목(턱 밑) 기준으로 살짝 작게
+  hg.scale.setScalar(HEAD_SCALE); hg.position.y = HEAD_PIVOT * (1 - HEAD_SCALE); g.add(hg);
   // 바닥 그림자
   const sh = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 1.9), new THREE.MeshBasicMaterial({ map: shadowTex(), transparent: true, depthWrite: false }));
   sh.rotation.x = -Math.PI / 2; sh.position.y = -1.39; g.add(sh);
