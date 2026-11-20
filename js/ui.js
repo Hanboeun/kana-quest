@@ -2,7 +2,9 @@
 (function () {
   const D = GQ.data;
   const SCRIPT_BASE = document.currentScript && document.currentScript.src;
-  const APP_VERSION = '32';
+  const APP_VERSION = '33';
+  const HOME_URL = 'https://nihongo-league.web.app/'; // 앱 주소 (예전: hanboeun.github.io/kana-quest)
+  const OLD_HOST = location.hostname === 'hanboeun.github.io';
   const app = document.getElementById('app');
   let state = null, store = null, caps = { tts: false, asr: false }, tab = 'home', toastT = null, mascotN = 0;
   const now = () => Date.now();
@@ -117,12 +119,26 @@
     const qs = state.quests.list.map(q => `<div class="quest"><span class="t">${esc(q.title)}</span>${q.done ? '<span class="stamp" aria-label="완료">済</span>' : `<span class="qcount">${q.progress}/${q.target}</span>`}
       ${q.done ? '' : `<div class="bar"><i style="width:${Math.round(q.progress / q.target * 100)}%"></i></div>`}</div>`).join('');
     const chestCta = state.chests.count ? `<button class="card chest-cta" id="homeChest"><span class="chest-mini">${ICON.chest}</span><span><b>보물상자 ${state.chests.count}개</b><br><span class="sub">눌러서 열면 꾸미기 아이템이 나와요</span></span><span class="badge-n">${state.chests.count}</span></button>` : '';
-    shell(`${statusChips()}${chestCta}${hero}
+    // 예전 주소: 새 주소로 옮기라는 안내 + 기록 복사 / 새 주소에서 처음이면: 기록 붙여넣기 안내
+    const moveCard = OLD_HOST
+      ? `<section class="card move-card"><h2>앱 주소가 바뀌었어요</h2>
+          <p class="sub">1. 아래 <b>기록 복사</b>를 눌러요<br>2. <b>새 주소 열기</b> → 홈 화면에 추가해요<br>3. 새 앱의 <b>설정 → 기록 붙여넣기</b>에 붙여넣어요<br>4. 이 예전 아이콘은 지워도 돼요</p>
+          <div class="actions"><button class="btn" id="mvCopy">기록 복사</button><a class="btn ghost" href="${HOME_URL}" target="_blank" rel="noopener">새 주소 열기</a></div>
+          <p class="sub" id="mvMsg"></p></section>`
+      : (state.xp.total === 0 ? `<section class="card"><p class="sub">예전 주소(hanboeun.github.io)에서 하던 기록이 있으면 <b>설정 → 기록 붙여넣기</b>로 가져올 수 있어요</p></section>` : '');
+    shell(`${statusChips()}${moveCard}${chestCta}${hero}
       <section class="card"><div class="row"><div><h2>오늘 복습</h2><p class="sub">${due ? `기억이 흐려질 때가 된 글자 ${due}개` : seen ? '지금은 복습할 때가 된 글자가 없어요. 약한 글자로 연습할 수 있어요' : '레슨을 하면 복습할 글자가 쌓여요'}</p></div>
         <button class="btn ${due ? 'gold' : 'ghost'} small" data-go="review" ${seen ? '' : 'disabled'}>복습하기</button></div></section>
       <section class="card"><div class="row"><h2>하루 퀘스트</h2><span class="sub">하나 깰 때마다 조각 하나</span></div><div class="quests">${qs}</div></section>
       ${mapHtml()}`);
     bindGo(app);
+    const mc = app.querySelector('#mvCopy');
+    if (mc) mc.onclick = () => {
+      const code = GQ.store.exportCode(state), m = app.querySelector('#mvMsg');
+      const ok = () => { m.textContent = '복사했어요. 새 앱의 설정 → 기록 붙여넣기에 붙여넣으세요.'; };
+      const fail = () => { m.innerHTML = '자동 복사가 안 돼요. 설정 → 기록 옮기기에서 복사해 주세요.'; };
+      try { navigator.clipboard.writeText(code).then(ok, fail); } catch (e) { fail(); }
+    };
     app.querySelectorAll('[data-group]').forEach(b => b.onclick = () => openGroup(b.dataset.group));
     const hc = app.querySelector('#homeChest'); if (hc) hc.onclick = openChest;
   }
@@ -503,7 +519,7 @@
     };
     const cp = app.querySelector('#copyCode');
     if (cp) cp.onclick = () => {
-      const text = `일본어 초급반 친구 리그 초대 코드: ${state.room.code}\nhttps://hanboeun.github.io/kana-quest/ → 리그 탭에서 코드 넣기`;
+      const text = `일본어 초급반 친구 리그 초대 코드: ${state.room.code}\n${HOME_URL} → 리그 탭에서 코드 넣기`;
       try { navigator.clipboard.writeText(text).then(() => toast('초대 문구를 복사했어요'), () => toast('코드: ' + state.room.code)); } catch (e) { toast('코드: ' + state.room.code); }
     };
     const sn = app.querySelector('#saveNick');
