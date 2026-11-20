@@ -67,10 +67,15 @@ function headGeometry() {
   const p = geo.attributes.position, v = new THREE.Vector3();
   for (let i = 0; i < p.count; i++) {
     v.fromBufferAttribute(p, i);
-    // 턱만: 입 아래(y -0.5 아래)에서부터 통통하게. 코·입 높이(y -0.3 위)는 그대로
-    const low = ss(-0.42, -0.68, v.y) * (1 - ss(-0.9, -0.99, v.y));
-    const front = ss(0.05, 0.85, v.z);               // 얼굴 정면 쪽만
-    p.setXYZ(i, v.x * (1 + 0.06 * low * front), v.y * (1 + 0.08 * low * front), v.z * (1 + 0.22 * low * front));
+    // 아래 절반을 '둥근 ㄴ자'로: 옆에서 보면 얼굴 앞은 곧게 내려오고 턱 밑은 평평, 모서리만 둥글게.
+    // 원(n=2) 대신 둥근 네모(n=3.2) 단면으로 바꿔 아래쪽 모서리를 채움
+    if (v.y < 0) {
+      const rh = Math.hypot(v.x, v.z), ay = -v.y, n = 3.8;
+      const t = 1 / Math.pow(Math.pow(rh, n) + Math.pow(ay, n), 1 / n);
+      const w = ss(0, -0.25, v.y) * ss(-0.3, 0.45, v.z);   // 아래쪽 + 앞·옆만 (뒤통수는 그대로)
+      const k = 1 + (t - 1) * w;
+      p.setXYZ(i, v.x * k, v.y * k, v.z * k);
+    }
   }
   geo.computeVertexNormals();
   return (headGeo = geo);
