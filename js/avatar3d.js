@@ -59,6 +59,24 @@ function faceTexture(skin, eyes, eyeColor) {
   faceCache.set(key, t); return t;
 }
 
+// ---------- 얼굴 모양: 아래 볼~턱이 앞·옆으로 통통하게 나온 구 ----------
+let headGeo = null;
+function headGeometry() {
+  if (headGeo) return headGeo;
+  const geo = new THREE.SphereGeometry(1, 96, 72);
+  const p = geo.attributes.position, v = new THREE.Vector3();
+  for (let i = 0; i < p.count; i++) {
+    v.fromBufferAttribute(p, i);
+    // 아래쪽(y -0.15 ~ -0.75)에서 가장 많이, 정수리·바닥 쪽은 그대로
+    const low = ss(0.1, -0.35, v.y) * (1 - ss(-0.7, -0.98, v.y));
+    const front = ss(-0.35, 0.75, v.z);              // 앞쪽일수록 많이 (옆 볼도 조금)
+    const r = 1 + 0.2 * low * front;
+    p.setXYZ(i, v.x * (1 + 0.12 * low * front), v.y * (1 + 0.07 * low * front), v.z * r);
+  }
+  geo.computeVertexNormals();
+  return (headGeo = geo);
+}
+
 // ---------- 머리카락 조각 (두께 있는 덩어리에서 얼굴 자리를 파냄) ----------
 const hairGeoCache = new Map();
 function hairGeometry(cut) {
@@ -117,7 +135,7 @@ function buildCharacter(look) {
   const hairC = def(look.hairColor).color || '#6a4330';
   const hair = mat(hairC, 0.6, { side: THREE.DoubleSide });
   // 머리
-  const head = sph(1, new THREE.MeshStandardMaterial({ map: faceTexture(skinC, def(look.eyes).kind || 'basic', def(look.eyeColor).color || '#6b4a32'), roughness: 0.9 }), 64);
+  const head = new THREE.Mesh(headGeometry(), new THREE.MeshStandardMaterial({ map: faceTexture(skinC, def(look.eyes).kind || 'basic', def(look.eyeColor).color || '#6b4a32'), roughness: 0.9 }));
   head.scale.set(HS.x, HS.y, HS.z); head.position.y = HEAD_Y; g.add(head);
   const hd = def(look.hair);
   const hm = new THREE.Mesh(hairGeometry(hd.cut || 'bob'), hair); hm.position.y = HEAD_Y; hm.scale.set(HS.x, HS.y, HS.z); g.add(hm);
@@ -306,7 +324,9 @@ function ensure() {
   el.addEventListener('pointerup', () => { drag = null; });
   el.addEventListener('pointercancel', () => { drag = null; });
 }
-function disposeGroup(g) { g.traverse(o => { if (o.geometry && !hairGeoCacheHas(o.geometry)) o.geometry.dispose(); if (o.material && !o.material.map) o.material.dispose(); }); }
+// 각도를 바로 바꿔 한 번 그림 (확인용)
+export function setAngle(r) { rotY = r; if (current) { current.rotation.y = r; if (mountedEl) renderer.render(scene, camera); } }
+function disposeGroup(g) { g.traverse(o => { if (o.geometry && o.geometry !== headGeo && !hairGeoCacheHas(o.geometry)) o.geometry.dispose(); if (o.material && !o.material.map) o.material.dispose(); }); }
 function hairGeoCacheHas(geo) { for (const v of hairGeoCache.values()) if (v === geo) return true; return false; }
 function setLook(look) {
   const key = JSON.stringify(look);
