@@ -190,8 +190,10 @@ function addBottom(g, d) {
   const m = mat(d.color || '#6f95cf', 0.85);
   if (d.kind === 'skirt') { const s = cyl(0.38, 0.52, 0.34, m, 48); s.position.y = -0.72; s.scale.z = 0.85; g.add(s); return; }
   if (d.kind === 'long') { const s = cyl(0.38, 0.6, 0.78, m, 48); s.position.y = -0.9; s.scale.z = 0.86; g.add(s); return; }
-  const waist = cyl(0.37, 0.38, 0.16, m); waist.position.y = -0.64; waist.scale.z = 0.78; g.add(waist);
-  for (const s of [-1, 1]) { const l = cyl(0.17, 0.16, 0.22, m, 24); l.position.set(s * 0.17, -0.8, 0); g.add(l); }
+  // 반바지: 허리부터 엉덩이까지 한 덩어리 + 허벅지 중간까지 오는 다리통 (가운데 빈틈 없게)
+  const hip = cyl(0.37, 0.39, 0.3, m); hip.position.y = -0.7; hip.scale.z = 0.8; g.add(hip);
+  const seat = sph(0.38, m); seat.scale.set(1.0, 0.45, 0.8); seat.position.y = -0.84; g.add(seat);
+  for (const s of [-1, 1]) { const l = cyl(0.18, 0.17, 0.26, m, 24); l.position.set(s * 0.16, -0.95, 0); l.scale.z = 0.95; g.add(l); }
   if (d.kind === 'overall') {
     const bib = box(0.36, 0.3, 0.05, m); bib.position.set(0, -0.36, 0.27); g.add(bib);
     for (const s of [-1, 1]) { const st = box(0.06, 0.4, 0.04, m); st.position.set(s * 0.15, -0.08, 0.27); g.add(st); const bt = sph(0.03, mat('#ffd45c', 0.4)); bt.position.set(s * 0.15, -0.24, 0.3); g.add(bt); }
@@ -286,7 +288,7 @@ function bgTexture(id) {
 }
 
 // ---------- 무대 (렌더러 하나) ----------
-let renderer = null, scene, camera, current = null, mountedEl = null, raf = 0, rotY = -0.35, drag = null, lastLookKey = '';
+let renderer = null, scene, camera, current = null, mountedEl = null, raf = 0, rotY = 0, drag = null, lastLookKey = '';
 function ensure() {
   if (renderer) return;
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true });
@@ -329,7 +331,7 @@ function fit() {
   renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
 }
 export function mount(el, look) {
-  ensure(); unmount();
+  ensure(); unmount(); rotY = 0; // 처음엔 정면
   mountedEl = el; el.appendChild(renderer.domElement); fit(); setLook(look);
   renderer.render(scene, camera); // 애니메이션이 돌기 전에도 바로 한 번 그림
   window.addEventListener('resize', fit);
@@ -348,7 +350,7 @@ export function snapshot(look, size = 160) {
   const key = JSON.stringify(look) + size;
   if (snapCache.has(key)) return snapCache.get(key);
   const wasMounted = mountedEl, prevKey = lastLookKey, prevRot = rotY;
-  rotY = -0.25; setLook(look); current.rotation.y = rotY; current.position.y = 0; current.scale.set(1, 1, 1);
+  rotY = 0; setLook(look); current.rotation.y = rotY; current.position.y = 0; current.scale.set(1, 1, 1);
   renderer.setSize(size, size, false);
   const cam = camera.clone(); cam.aspect = 1; cam.fov = 26; cam.position.set(0, 1.25, 7.2); cam.lookAt(0, 0.85, 0); cam.updateProjectionMatrix();
   renderer.render(scene, cam);

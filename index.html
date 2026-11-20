@@ -273,6 +273,32 @@ h1 { font-size: 22px; margin: 4px 0 0; text-wrap: balance; }
 .chest.open .glow { animation: chestGlow .9s ease-out forwards; }
 @keyframes chestShake { 0%,100% { transform: rotate(0); } 15% { transform: rotate(-6deg); } 30% { transform: rotate(6deg); } 45% { transform: rotate(-8deg) scale(1.03); } 60% { transform: rotate(8deg) scale(1.05); } 80% { transform: scale(1.1); } }
 @keyframes chestGlow { 0% { opacity: 1; transform: scale(1); } 100% { opacity: .9; transform: scale(14); } }
+/* 상자 열기 강한 연출: 모으는 빛 → 번쩍 → 빛줄기 회전 → 색종이 → 화면 흔들림 */
+.chest-stage { position: relative; z-index: 3; }
+.chest-bg.charging .chest .glow { opacity: 1; animation: charge .75s ease-in forwards; }
+@keyframes charge { from { transform: scale(.5); } to { transform: scale(5); } }
+.chest-flash { position: absolute; inset: 0; background: #fffbe6; opacity: 0; pointer-events: none; z-index: 4; }
+.chest-bg.burst .chest-flash { animation: flash .55s ease-out; }
+@keyframes flash { 0% { opacity: .95; } 100% { opacity: 0; } }
+.chest-rays { position: absolute; left: 50%; top: 38%; width: 900px; height: 900px; margin: -450px 0 0 -450px; border-radius: 50%; opacity: 0; pointer-events: none; z-index: 1;
+  background: repeating-conic-gradient(from 0deg, rgb(255 230 120 / .5) 0deg 8deg, rgb(255 230 120 / 0) 8deg 22deg);
+  -webkit-mask: radial-gradient(circle, #000 0 18%, transparent 62%); mask: radial-gradient(circle, #000 0 18%, transparent 62%); }
+.chest-bg.burst .chest-rays { animation: raysIn .5s ease-out forwards, raysSpin 9s linear infinite; }
+@keyframes raysIn { from { opacity: 0; transform: scale(.3); } to { opacity: 1; transform: scale(1); } }
+@keyframes raysSpin { to { rotate: 360deg; } }
+.chest-bg.burst .chest-stage { animation: screenShake .45s ease-out; }
+@keyframes screenShake { 0%,100% { transform: none; } 20% { transform: translate(-8px, 4px); } 40% { transform: translate(7px, -5px); } 60% { transform: translate(-5px, 3px); } 80% { transform: translate(3px, -2px); } }
+.confetti { position: absolute; left: 50%; top: 40%; width: 0; height: 0; z-index: 5; pointer-events: none; }
+.confetti i { position: absolute; left: 0; top: 0; opacity: 0; animation: confetti 1.6s cubic-bezier(.15,.7,.4,1) forwards; }
+@keyframes confetti { 0% { opacity: 1; transform: translate(0, 0) rotate(0); } 70% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--x), calc(var(--y) + 260px)) rotate(var(--r)); } }
+.chest.shake { animation: chestShake .75s ease-in-out; }
+@keyframes chestShake { 0%,100% { transform: rotate(0); } 10% { transform: rotate(-5deg); } 20% { transform: rotate(5deg); } 30% { transform: rotate(-8deg) scale(1.03); } 45% { transform: rotate(9deg) scale(1.06); } 60% { transform: rotate(-11deg) scale(1.09); } 75% { transform: rotate(12deg) scale(1.12); } 90% { transform: scale(1.18); } }
+.chest.open { animation: chestPop .5s cubic-bezier(.3,1.8,.5,1); }
+@keyframes chestPop { 0% { transform: scale(1.2); } 40% { transform: scale(.88); } 100% { transform: scale(1); } }
+.chest.open .lid { transform: translateY(-46px) rotate(-38deg); }
+.chest-prize h2 { background: linear-gradient(90deg, #ff4f8b, #ff9f1c, #2ec4b6, #6b5bff); -webkit-background-clip: text; background-clip: text; color: transparent; font-size: 26px !important; }
+.chest-prize { animation: prizeUp .55s cubic-bezier(.3,1.7,.5,1) .15s both !important; }
+@media (prefers-reduced-motion: reduce) { .chest-rays, .confetti { display: none; } }
 .chest-prize { width: 100%; background: var(--card); color: var(--ink); border-radius: 18px; padding: 16px; display: grid; gap: 10px; animation: prizeUp .4s cubic-bezier(.3,1.5,.5,1); }
 .chest-prize h2 { margin: 0; font-size: 22px; }
 .prize-pic { display: grid; place-items: center; min-height: 150px; }
@@ -297,20 +323,20 @@ h1 { font-size: 22px; margin: 4px 0 0; text-wrap: balance; }
 <div id="app"><div class="loading"><div><div class="kana">あ</div>불러오는 중…</div></div></div>
 
 <script>window.GQ = window.GQ || {};</script>
-<script src="js/time.js?v=6801775"></script>
-<script src="js/data.js?v=6801775"></script>
-<script src="js/strokes.js?v=6801775"></script>
-<script src="js/store.js?v=6801775"></script>
-<script src="js/srs.js?v=6801775"></script>
-<script src="js/league.js?v=6801775"></script>
-<script src="js/quests.js?v=6801775"></script>
-<script src="js/lesson.js?v=6801775"></script>
-<script src="js/writing.js?v=6801775"></script>
-<script src="js/audio-index.js?v=6801775"></script>
-<script src="js/speech.js?v=6801775"></script>
-<script src="js/combo.js?v=6801775"></script>
-<script src="js/avatar-data.js?v=6801775"></script>
-<script src="js/chest.js?v=6801775"></script>
-<script src="js/ui.js?v=6801775"></script>
+<script src="js/time.js?v=7a47629"></script>
+<script src="js/data.js?v=7a47629"></script>
+<script src="js/strokes.js?v=7a47629"></script>
+<script src="js/store.js?v=7a47629"></script>
+<script src="js/srs.js?v=7a47629"></script>
+<script src="js/league.js?v=7a47629"></script>
+<script src="js/quests.js?v=7a47629"></script>
+<script src="js/lesson.js?v=7a47629"></script>
+<script src="js/writing.js?v=7a47629"></script>
+<script src="js/audio-index.js?v=7a47629"></script>
+<script src="js/speech.js?v=7a47629"></script>
+<script src="js/combo.js?v=7a47629"></script>
+<script src="js/avatar-data.js?v=7a47629"></script>
+<script src="js/chest.js?v=7a47629"></script>
+<script src="js/ui.js?v=7a47629"></script>
 </body>
 </html>

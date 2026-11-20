@@ -2,7 +2,7 @@
 (function () {
   const D = GQ.data;
   const SCRIPT_BASE = document.currentScript && document.currentScript.src;
-  const APP_VERSION = '20';
+  const APP_VERSION = '21';
   const app = document.getElementById('app');
   let state = null, store = null, caps = { tts: false, asr: false }, tab = 'home', toastT = null, mascotN = 0;
   const now = () => Date.now();
@@ -477,10 +477,24 @@
   }
 
   // ---------- 보물상자 열기 ----------
+  // 색종이: 가운데서 사방으로 터져 떨어짐 (조각마다 방향·색·회전이 다름)
+  function burstConfetti(box) {
+    if (!box || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+    const colors = ['#ff4f8b', '#ffd23f', '#4fd1c5', '#6b5bff', '#ff8a3d', '#ffffff', '#7ee081'];
+    let html = '';
+    for (let i = 0; i < 70; i++) {
+      const a = Math.random() * Math.PI * 2, d = 140 + Math.random() * 260;
+      const x = Math.cos(a) * d, y = Math.sin(a) * d - 120, rot = (Math.random() * 1080 - 540) | 0;
+      const w = 6 + Math.random() * 8, h = Math.random() < 0.3 ? w : w * 0.45, delay = (Math.random() * 120) | 0;
+      html += `<i style="--x:${x | 0}px;--y:${y | 0}px;--r:${rot}deg;width:${w | 0}px;height:${h | 0}px;background:${colors[i % colors.length]};animation-delay:${delay}ms;border-radius:${Math.random() < 0.3 ? '50%' : '2px'}"></i>`;
+    }
+    box.innerHTML = html;
+  }
   function openChest() {
     if (!state.chests.count) return;
     const bg = document.createElement('div'); bg.className = 'chest-bg';
-    bg.innerHTML = `<div class="chest-stage"><div class="chest" id="chest" role="button" tabindex="0" aria-label="보물상자 열기"><div class="lid"></div><div class="base"><i></i></div><div class="glow"></div></div>
+    bg.innerHTML = `<div class="chest-rays" aria-hidden="true"></div><div class="chest-flash" aria-hidden="true"></div><div class="confetti" aria-hidden="true"></div>
+      <div class="chest-stage"><div class="chest" id="chest" role="button" tabindex="0" aria-label="보물상자 열기"><div class="lid"></div><div class="base"><i></i></div><div class="glow"></div></div>
       <p class="chest-hint">눌러서 열기 · 남은 상자 ${state.chests.count}개</p><div class="chest-prize" id="prize" hidden></div></div>`;
     document.body.appendChild(bg);
     loadAvatar3d();
@@ -489,9 +503,11 @@
     const close = () => { bg.remove(); render(); };
     const go = () => {
       if (opened) return; opened = true;
-      chest.classList.add('shake'); hint.textContent = '두근두근…';
+      chest.classList.add('shake'); hint.textContent = '두근두근…'; bg.classList.add('charging');
       setTimeout(() => {
         chest.classList.remove('shake'); chest.classList.add('open');
+        bg.classList.remove('charging'); bg.classList.add('burst'); // 번쩍 + 빛줄기 + 화면 흔들림
+        burstConfetti(bg.querySelector('.confetti'));
         const r = GQ.chest.open(state, Math.random, now()); state = r.state; save();
         hint.hidden = true; prize.hidden = false;
         const more = state.chests.count;
