@@ -35,12 +35,14 @@
     I('hc-pink', 'hairColor', '분홍 머리', { color: '#f08fb0' }),
     I('hc-ash', 'hairColor', '애쉬 그레이', { color: '#9a9aa6' }),
     // 모자
+    // 모자 4 + 머리띠 3
     I('hat-straw', 'hat', '밀짚모자', { kind: 'straw' }),
-    I('hat-hachimaki', 'hat', '하치마키', { kind: 'hachimaki' }),
-    I('hat-catband', 'hat', '고양이 귀 머리띠', { kind: 'catband' }),
     I('hat-beret', 'hat', '베레모', { kind: 'beret', color: '#c0392b' }),
-    I('hat-gat', 'hat', '갓', { kind: 'gat' }),
-    I('hat-beanie', 'hat', '비니', { kind: 'beanie', color: '#5a7fd6' }),
+    I('hat-cap', 'hat', '캡모자', { kind: 'cap', color: '#3f63d6' }),
+    I('hat-bucket', 'hat', '버킷햇', { kind: 'bucket', color: '#f0dcb8' }),
+    I('hat-catband', 'hat', '고양이 귀 머리띠', { kind: 'catband', color: '#3a3a44' }),
+    I('hat-ribbonband', 'hat', '리본 머리띠', { kind: 'ribbonband', color: '#e8556d' }),
+    I('hat-flowerband', 'hat', '꽃 머리띠', { kind: 'flowerband', color: '#7fbf6a' }),
     // 상의
     I('top-tee', 'top', '흰 티셔츠', { kind: 'tee', color: '#f6f3ea' }),
     I('top-hanbok', 'top', '한복 저고리', { kind: 'jeogori', color: '#ffc2d3', tie: '#e0436b' }),
@@ -92,5 +94,7 @@
   }
   function unowned(owned) { const have = new Set(owned || []); return items.filter(i => !have.has(i.id) && !STARTER.includes(i.id)); }
   function item(id) { return byId.get(id) || null; }
-  GQ.avatar = { SLOTS, SLOT_NAMES, items, STARTER, OPTIONAL, defaultLook, sanitize, unowned, item };
+  // 없앤 아이템 → 대신 줄 아이템 (가지고 있던 사람은 바꿔서 받음)
+  const RENAMED = { 'hat-gat': 'hat-cap', 'hat-beanie': 'hat-bucket', 'hat-hachimaki': 'hat-ribbonband' };
+  GQ.avatar = { RENAMED, SLOTS, SLOT_NAMES, items, STARTER, OPTIONAL, defaultLook, sanitize, unowned, item };
 })();

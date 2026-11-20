@@ -244,30 +244,54 @@ function addHat(g, d) {
     const band = cyl(1.04, 1.07, 0.14, mat('#e8556d', 0.7), 48); band.position.y = 0.1; band.scale.z = 0.91; hat.add(band);
     g.add(hat);
   }
-  if (d.kind === 'hachimaki') {
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(1, 0.07, 12, 64), mat('#ffffff', 0.8)); ring.position.y = 1.55; ring.rotation.x = Math.PI / 2; ring.scale.set(HS.x * 1.03, HS.z * 1.05, 1); g.add(ring);
-    const sun = new THREE.Mesh(new THREE.CircleGeometry(0.11, 24), mat('#d6336c', 0.6)); sun.position.set(0, 1.56, HS.z * 1.05 + 0.075); g.add(sun);
+  // 머리띠: 머리카락 겉면을 따라 귀에서 귀까지 딱 붙는 띠. on(θ)는 띠 위의 점(θ=0 정수리, ±는 좌우)
+  const BAND = { rx: 1.25, ry: 1.01, z: 0.15 };
+  const on = (t, out = 0) => new THREE.Vector3(Math.sin(t) * (BAND.rx + out), HEAD_Y + Math.cos(t) * (BAND.ry + out), BAND.z);
+  function band(color) {
+    const b = new THREE.Mesh(new THREE.TorusGeometry(1, 0.055, 12, 80, Math.PI), mat(color, 0.55));
+    b.position.set(0, HEAD_Y, BAND.z); b.scale.set(BAND.rx, BAND.ry, 1); g.add(b);
   }
+  if (d.kind === 'catband' || d.kind === 'ribbonband' || d.kind === 'flowerband') band(d.color);
   if (d.kind === 'catband') {
-    const band = new THREE.Mesh(new THREE.TorusGeometry(1.08, 0.04, 8, 48, Math.PI), mat('#444', 0.6)); band.position.y = HEAD_Y + 0.05; band.scale.set(HS.x, HS.y * 1.12, 1); g.add(band);
     for (const s of [-1, 1]) {
-      const ear = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.38, 4), mat('#444', 0.6)); ear.position.set(s * 0.62, 2.12, 0.05); ear.rotation.z = -s * 0.35; g.add(ear);
-      const inner = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.22, 4), mat('#f4a6b8', 0.6)); inner.position.set(s * 0.6, 2.08, 0.15); inner.rotation.z = -s * 0.35; g.add(inner);
+      const t = s * 0.62, p = on(t, 0.13);
+      const ear = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.42, 4), mat(d.color, 0.6)); ear.position.copy(p); ear.rotation.set(0, Math.PI / 4, -t); ear.scale.z = 0.55; g.add(ear);
+      const inner = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.24, 4), mat('#f4a6b8', 0.6)); inner.position.copy(on(t, 0.1)); inner.position.z += 0.08; inner.rotation.set(0, Math.PI / 4, -t); inner.scale.z = 0.4; g.add(inner);
     }
+  }
+  if (d.kind === 'ribbonband') {
+    const t = 0.6, r = new THREE.Group(); r.position.copy(on(t, 0.06)); r.rotation.z = -t;
+    const m = mat(d.color, 0.55);
+    for (const s of [-1, 1]) { const w = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.34, 20), m); w.rotation.z = s * Math.PI / 2; w.position.x = s * 0.19; w.scale.z = 0.55; r.add(w); }
+    r.add(sph(0.09, m)); g.add(r);
+  }
+  if (d.kind === 'flowerband') {
+    const petal = [mat('#ffffff', 0.6), mat('#ff9fbe', 0.6)], mid = mat('#ffd84a', 0.5);
+    [-0.95, -0.48, 0, 0.48, 0.95].forEach((t, k) => {
+      const f = new THREE.Group(); f.position.copy(on(t, 0.07)); f.rotation.z = -t;
+      for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2, p = sph(0.065, petal[k % 2]); p.position.set(Math.cos(a) * 0.08, Math.sin(a) * 0.08, 0.02); p.scale.z = 0.5; f.add(p); }
+      const c = sph(0.045, mid); c.position.z = 0.04; f.add(c); g.add(f);
+    });
+  }
+  if (d.kind === 'cap') { // 캡모자: 머리를 덮는 반구 + 앞 챙
+    const m = mat(d.color, 0.8, { side: THREE.DoubleSide }), k = 1.16;
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(1, 56, 32, 0, Math.PI * 2, 0, Math.PI * 0.36), m);
+    dome.position.y = HEAD_Y; dome.scale.set(HS.x * k, HS.y * k, HS.z * k); g.add(dome);
+    const visor = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.85, 0.05, 40, 1, false, -Math.PI / 2, Math.PI), m);
+    visor.position.set(0, 1.58, 0.56); visor.rotation.x = 0.14; visor.scale.x = 1.15; g.add(visor);
+    const btn = sph(0.07, m); btn.position.y = HEAD_Y + HS.y * k; g.add(btn);
+  }
+  if (d.kind === 'bucket') { // 버킷햇: 둥근 몸통 + 아래로 처진 챙
+    const m = mat(d.color, 0.9, { side: THREE.DoubleSide });
+    const hat = new THREE.Group(); hat.position.y = 1.62; hat.rotation.x = -0.06;
+    const crown = cyl(0.9, 1.08, 0.56, m, 48); crown.position.y = 0.3; crown.scale.z = 0.9; hat.add(crown);
+    const top = sph(0.9, m); top.scale.set(1, 0.2, 0.9); top.position.y = 0.58; hat.add(top);
+    const brim = new THREE.Mesh(new THREE.CylinderGeometry(1.08, 1.5, 0.28, 64, 1, true), m); brim.position.y = -0.1; brim.scale.z = 0.92; hat.add(brim);
+    g.add(hat);
   }
   if (d.kind === 'beret') {
     const b = sph(1.0, mat(d.color, 0.85)); b.scale.set(1.18, 0.36, 1.06); b.position.set(0.06, 1.92, -0.06); b.rotation.z = -0.2; g.add(b);
     const stem = cap(0.04, 0.06, mat(d.color, 0.85)); stem.position.set(0.0, 2.28, -0.06); g.add(stem);
-  }
-  if (d.kind === 'gat') {
-    const black = mat('#1b1b1f', 0.5, { transparent: true, opacity: 0.88 });
-    const brim = cyl(1.7, 1.7, 0.03, black, 64); brim.position.y = 1.72; g.add(brim);
-    const crown = cyl(0.62, 0.72, 0.7, black); crown.position.y = 2.06; g.add(crown);
-  }
-  if (d.kind === 'beanie') {
-    const cap1 = new THREE.Mesh(new THREE.SphereGeometry(1.14, 48, 32, 0, Math.PI * 2, 0, Math.PI * 0.42), mat(d.color, 0.95)); cap1.position.y = HEAD_Y; cap1.scale.set(HS.x, HS.y, HS.z); g.add(cap1);
-    const rim = new THREE.Mesh(new THREE.TorusGeometry(1.0, 0.09, 12, 64), mat(d.color, 0.95)); rim.position.y = HEAD_Y + HS.y * 0.84; rim.rotation.x = Math.PI / 2; rim.scale.set(HS.x * 0.62, HS.z * 0.62, 1); g.add(rim);
-    const pom = sph(0.2, mat('#ffffff', 1)); pom.position.y = HEAD_Y + HS.y * 1.28; g.add(pom);
   }
 }
 function addAcc(g, d) {

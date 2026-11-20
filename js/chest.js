@@ -27,7 +27,9 @@
       s.migratedAvatar = true;
     }
     const known = new Set(GQ.avatar.items.map(i => i.id));
-    const extra = (s.avatar.owned || []).filter(id => known.has(id) && !GQ.avatar.STARTER.includes(id));
+    const ren = (id) => GQ.avatar.RENAMED[id] || id;
+    for (const sl of GQ.avatar.SLOTS) if (s.avatar.look && s.avatar.look[sl]) s.avatar.look[sl] = ren(s.avatar.look[sl]);
+    const extra = (s.avatar.owned || []).map(ren).filter(id => known.has(id) && !GQ.avatar.STARTER.includes(id));
     s.avatar.owned = GQ.avatar.STARTER.concat([...new Set(extra)]);
     s.avatar.look = GQ.avatar.sanitize(s.avatar.look, s.avatar.owned);
     return s;
