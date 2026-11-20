@@ -2,7 +2,7 @@
 (function () {
   const D = GQ.data;
   const SCRIPT_BASE = document.currentScript && document.currentScript.src;
-  const APP_VERSION = '31';
+  const APP_VERSION = '32';
   const app = document.getElementById('app');
   let state = null, store = null, caps = { tts: false, asr: false }, tab = 'home', toastT = null, mascotN = 0;
   const now = () => Date.now();
@@ -474,6 +474,7 @@
       ${roomCard}
       <section class="card standings">${list}</section>`);
     bindRoom();
+    fillAvatars(app); // 동기화 뒤 다시 그릴 때도 캐릭터 그림 채우기
     if (room && now() - roomSyncedAt > 15000) {
       roomStatus = '방 사람들 기록을 불러오는 중…'; const m = app.querySelector('#roomMsg'); if (m) m.textContent = roomStatus;
       syncRoom().then(() => { roomStatus = ''; if (tab === 'league') renderLeague(); })
