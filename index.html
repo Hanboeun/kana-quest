@@ -305,6 +305,15 @@ h1 { font-size: 22px; margin: 4px 0 0; text-wrap: balance; }
 .prize-pic img { border-radius: 18px; background: var(--ai-soft); }
 @keyframes prizeUp { from { transform: translateY(30px) scale(.9); opacity: 0; } to { transform: none; opacity: 1; } }
 
+/* 친구 리그 */
+.room-card { gap: 10px; }
+.room-code { font-size: 30px; letter-spacing: 6px; font-variant-numeric: tabular-nums; color: var(--ai); }
+.nick-row { display: flex; gap: 8px; align-items: center; }
+.nick-row input { flex: 1; min-width: 0; height: 44px; border-radius: 12px; border: 1.5px solid var(--line); padding: 0 12px; font: inherit; background: var(--paper); color: var(--ink); }
+.tag-bot, .tag-friend { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 6px; vertical-align: middle; }
+.tag-bot { background: var(--ghost); color: var(--muted); }
+.tag-friend { background: color-mix(in srgb, var(--ok) 18%, var(--card)); color: var(--ok); }
+
 /* 설정 */
 .setting { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 48px; }
 .switch { width: 52px; height: 32px; border-radius: 99px; background: var(--ghost); position: relative; flex: none; transition: background .2s; }
@@ -323,20 +332,22 @@ h1 { font-size: 22px; margin: 4px 0 0; text-wrap: balance; }
 <div id="app"><div class="loading"><div><div class="kana">あ</div>불러오는 중…</div></div></div>
 
 <script>window.GQ = window.GQ || {};</script>
-<script src="js/time.js?v=cdedfc7"></script>
-<script src="js/data.js?v=cdedfc7"></script>
-<script src="js/strokes.js?v=cdedfc7"></script>
-<script src="js/store.js?v=cdedfc7"></script>
-<script src="js/srs.js?v=cdedfc7"></script>
-<script src="js/league.js?v=cdedfc7"></script>
-<script src="js/quests.js?v=cdedfc7"></script>
-<script src="js/lesson.js?v=cdedfc7"></script>
-<script src="js/writing.js?v=cdedfc7"></script>
-<script src="js/audio-index.js?v=cdedfc7"></script>
-<script src="js/speech.js?v=cdedfc7"></script>
-<script src="js/combo.js?v=cdedfc7"></script>
-<script src="js/avatar-data.js?v=cdedfc7"></script>
-<script src="js/chest.js?v=cdedfc7"></script>
-<script src="js/ui.js?v=cdedfc7"></script>
+<script src="js/time.js?v=9b08fd4"></script>
+<script src="js/data.js?v=9b08fd4"></script>
+<script src="js/strokes.js?v=9b08fd4"></script>
+<script src="js/store.js?v=9b08fd4"></script>
+<script src="js/srs.js?v=9b08fd4"></script>
+<script src="js/league.js?v=9b08fd4"></script>
+<script src="js/quests.js?v=9b08fd4"></script>
+<script src="js/lesson.js?v=9b08fd4"></script>
+<script src="js/writing.js?v=9b08fd4"></script>
+<script src="js/audio-index.js?v=9b08fd4"></script>
+<script src="js/speech.js?v=9b08fd4"></script>
+<script src="js/combo.js?v=9b08fd4"></script>
+<script src="js/avatar-data.js?v=9b08fd4"></script>
+<script src="js/chest.js?v=9b08fd4"></script>
+<script src="js/firebase-config.js?v=9b08fd4"></script>
+<script src="js/net.js?v=9b08fd4"></script>
+<script src="js/ui.js?v=9b08fd4"></script>
 </body>
 </html>

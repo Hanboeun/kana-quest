@@ -15,11 +15,12 @@
       finalBoss: { cleared: false, best: null },
       owned: [],
       equipped: { hat: null, outfit: null, item: null, bg: null },
-      settings: { hangul: false, sound: true, voiceURI: '', joinKana: false, voice: 'nanami' },
+      settings: { hangul: false, sound: true, voiceURI: '', joinKana: false, voice: 'nanami', nickname: '' },
       stats: { answered: 0, correct: 0, speak: 0, write: 0, bestCombo: 0 },
       chests: { count: 0, log: [] },
       avatar: { look: GQ.avatar ? GQ.avatar.defaultLook() : {}, owned: GQ.avatar ? GQ.avatar.STARTER.slice() : [] },
       migratedAvatar: false,
+      room: null, // 친구 리그 방 {code, name, tier, lastSeen}
       pendingResult: null,
     };
   }

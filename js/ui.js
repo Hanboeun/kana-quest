@@ -2,7 +2,7 @@
 (function () {
   const D = GQ.data;
   const SCRIPT_BASE = document.currentScript && document.currentScript.src;
-  const APP_VERSION = '30';
+  const APP_VERSION = '31';
   const app = document.getElementById('app');
   let state = null, store = null, caps = { tts: false, asr: false }, tab = 'home', toastT = null, mascotN = 0;
   const now = () => Date.now();
@@ -374,6 +374,7 @@
     function finishSession() {
       const res = GQ.lesson.finish(state, mode, gid, answers, now());
       state = res.state; save();
+      if (state.room) syncRoom().catch(() => {}); // 친구 리그에 이번 주 XP 올리기
       showResult(res.summary);
     }
     function showResult(s) {
@@ -421,22 +422,101 @@
   }
 
   // ---------- 리그 ----------
+  // ---------- 친구 리그 (초대 코드 방) ----------
+  let roomSyncedAt = 0, roomStatus = '';
+  const myWeekKey = () => state.league.weekKey || GQ.time.weekKey(now());
+  // 내 기록 올리고 방 사람들 기록 받아오기 → state.room.lastSeen에 저장 (주말 정산에도 씀)
+  async function syncRoom() {
+    const room = state.room; if (!room || !GQ.net) return false;
+    const wk = myWeekKey();
+    await GQ.net.pushMe(room.code, { name: room.name, look: state.avatar.look, tier: state.league.tier, weekKey: wk, weekXp: GQ.league.myWeekXp(state, wk) });
+    const f = await GQ.net.fetchMembers(room.code);
+    if (!state.room || state.room.code !== room.code) return false;
+    const others = {};
+    for (const m of f.members) if (m.id !== f.uid) others[m.id] = { name: m.name, xp: m.weekKey === wk ? m.weekXp : 0, look: m.look || null };
+    state.room.uid = f.uid;
+    state.room.count = f.members.length;
+    state.room.tier = GQ.league.roomTier(f.members.map(m => m.tier | 0));
+    state.room.lastSeen = { weekKey: wk, members: others };
+    save(); roomSyncedAt = now();
+    return true;
+  }
   function renderLeague() {
-    const t = now(), lg = D.leagues[state.league.tier];
+    const t = now(), lg = D.leagues[state.league.tier], room = state.room;
     const rows = GQ.league.standings(state, t);
     const left = GQ.time.weekEnd(t) - t, dd = Math.floor(left / 86400000), hh = Math.floor(left % 86400000 / 3600000);
     const list = rows.map(r => {
       const zone = r.rank === GQ.league.UP && state.league.tier < 9 ? '<div class="zone up">▲ 승급선 · 여기까지 다음 리그로</div>' :
         r.rank === GQ.league.SIZE - GQ.league.DOWN && state.league.tier > 0 ? '<div class="zone down">▼ 강등선 · 아래는 이전 리그로</div>' : '';
       const cls = (r.rank <= GQ.league.UP && state.league.tier < 9 ? 'top ' : '') + (r.rank > GQ.league.SIZE - GQ.league.DOWN && state.league.tier > 0 ? 'low ' : '') + (r.isMe ? 'me' : '');
-      const av = r.isMe ? `<span class="av me-av" style="background:var(--ai-soft)">${avatarImg(34)}<b>나</b></span>` : `<span class="av" style="background:${r.color}">${esc(r.name[0])}</span>`;
-      return `<div class="srow ${cls}"><span class="rk">${r.rank}</span>${av}<span class="nm">${esc(r.name)}</span><b>${r.xp} XP</b></div>${zone}`;
+      const av = r.isMe ? `<span class="av me-av" style="background:var(--ai-soft)">${avatarImg(34)}<b>나</b></span>`
+        : r.isReal ? `<span class="av me-av" style="background:var(--ai-soft)">${avatarImg(34, r.look || GQ.avatar.defaultLook())}<b>${esc(r.name[0])}</b></span>`
+        : `<span class="av" style="background:${r.color}">${esc(r.name[0])}</span>`;
+      const tag = room && r.isBot ? '<span class="tag-bot">가상</span>' : room && r.isReal ? '<span class="tag-friend">친구</span>' : '';
+      return `<div class="srow ${cls}"><span class="rk">${r.rank}</span>${av}<span class="nm">${esc(r.name)} ${tag}</span><b>${r.xp} XP</b></div>${zone}`;
     }).join('');
+    const nick = esc((room && room.name) || state.settings.nickname || '');
+    const roomCard = room
+      ? `<section class="card room-card"><div class="row"><div><p class="sub">친구 리그 방 코드</p><b class="room-code">${esc(room.code)}</b></div><button class="btn small" id="copyCode">코드 복사</button></div>
+          <p class="sub">이 코드를 보내면 같은 리그에서 겨뤄요${room.count ? ` · 지금 ${room.count}명` : ''}. 빈자리는 가상 플레이어예요.</p>
+          <div class="nick-row"><input id="nick" maxlength="12" value="${nick}" aria-label="별명"><button class="btn ghost small" id="saveNick">별명 바꾸기</button></div>
+          <p class="sub" id="roomMsg">${esc(roomStatus)}</p>
+          <div id="leaveBox"><button class="btn ghost small" id="leave1">방 나가기</button></div></section>`
+      : `<section class="card room-card"><h2>친구 리그</h2><p class="sub">초대 코드로 친구와 같은 리그에서 진짜 XP로 겨뤄요. 빈자리는 가상 플레이어가 채워요.</p>
+          <div class="nick-row"><input id="nick" maxlength="12" value="${nick}" placeholder="별명 (12자까지)" aria-label="별명"></div>
+          <button class="btn wide" id="mkRoom">새 방 만들기</button>
+          <div class="nick-row"><input id="codeIn" maxlength="6" placeholder="초대 코드 6자리" autocapitalize="characters" aria-label="초대 코드"><button class="btn ghost small" id="joinRoom">들어가기</button></div>
+          <p class="sub" id="roomMsg">${esc(roomStatus)}</p></section>`;
     shell(`${statusChips()}
       <section class="card"><div class="lg-head"><div class="tier-badge" style="background:${lg.color}">${esc(lg.ja)}</div>
         <div><h1>${esc(lg.ko)} 리그</h1><p class="sub">${dd}일 ${hh}시간 남음 · 상위 ${GQ.league.UP}명 승급, 하위 ${GQ.league.DOWN}명 강등</p></div></div>
         <div class="tiers" aria-label="리그 단계 ${state.league.tier + 1}/10">${D.leagues.map((l, i) => `<i class="${i <= state.league.tier ? 'on' : ''}" title="${esc(l.ko)}"></i>`).join('')}</div></section>
+      ${roomCard}
       <section class="card standings">${list}</section>`);
+    bindRoom();
+    if (room && now() - roomSyncedAt > 15000) {
+      roomStatus = '방 사람들 기록을 불러오는 중…'; const m = app.querySelector('#roomMsg'); if (m) m.textContent = roomStatus;
+      syncRoom().then(() => { roomStatus = ''; if (tab === 'league') renderLeague(); })
+        .catch(() => { roomStatus = '친구 리그에 연결하지 못했어요. 인터넷을 확인해 주세요'; roomSyncedAt = now(); if (tab === 'league') renderLeague(); });
+    }
+  }
+  function bindRoom() {
+    const msg = (t) => { roomStatus = t; const m = app.querySelector('#roomMsg'); if (m) m.textContent = t; };
+    const nickVal = () => (app.querySelector('#nick').value || '').trim().slice(0, 12);
+    const enter = (code, name) => { state.room = { code, name, tier: null, lastSeen: null }; state.settings.nickname = name; save(); roomSyncedAt = 0; roomStatus = ''; renderLeague(); };
+    const mk = app.querySelector('#mkRoom');
+    if (mk) mk.onclick = async () => {
+      const name = nickVal(); if (!name) return msg('별명을 먼저 적어주세요');
+      mk.disabled = true; msg('방을 만드는 중…');
+      try { enter(await GQ.net.createRoom(), name); toast('방을 만들었어요. 코드를 친구에게 보내세요'); }
+      catch (e) { mk.disabled = false; msg('방을 만들지 못했어요. 인터넷을 확인해 주세요'); }
+    };
+    const jn = app.querySelector('#joinRoom');
+    if (jn) jn.onclick = async () => {
+      const name = nickVal(); if (!name) return msg('별명을 먼저 적어주세요');
+      const code = (app.querySelector('#codeIn').value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (code.length !== 6) return msg('초대 코드 6자리를 넣어주세요');
+      jn.disabled = true; msg('확인하는 중…');
+      try { const c = await GQ.net.checkRoom(code); if (!c.ok) { jn.disabled = false; return msg(c.reason); } enter(code, name); toast('친구 리그에 들어왔어요'); }
+      catch (e) { jn.disabled = false; msg('연결하지 못했어요. 인터넷을 확인해 주세요'); }
+    };
+    const cp = app.querySelector('#copyCode');
+    if (cp) cp.onclick = () => {
+      const text = `일본어 초급반 친구 리그 초대 코드: ${state.room.code}\nhttps://hanboeun.github.io/kana-quest/ → 리그 탭에서 코드 넣기`;
+      try { navigator.clipboard.writeText(text).then(() => toast('초대 문구를 복사했어요'), () => toast('코드: ' + state.room.code)); } catch (e) { toast('코드: ' + state.room.code); }
+    };
+    const sn = app.querySelector('#saveNick');
+    if (sn) sn.onclick = () => {
+      const name = nickVal(); if (!name) return msg('별명을 적어주세요');
+      state.room.name = name; state.settings.nickname = name; save(); roomSyncedAt = 0; renderLeague(); toast('별명을 바꿨어요');
+    };
+    const l1 = app.querySelector('#leave1');
+    if (l1) l1.onclick = () => {
+      const box = app.querySelector('#leaveBox');
+      box.innerHTML = '<p class="sub">방을 나가면 친구 순위에서 빠지고 혼자 가상 리그로 돌아가요.</p><div class="actions"><button class="btn ghost small" id="lvNo">취소</button><button class="btn bad small" id="lvYes">나가기</button></div>';
+      box.querySelector('#lvNo').onclick = renderLeague;
+      box.querySelector('#lvYes').onclick = () => { const code = state.room.code; state.room = null; save(); GQ.net.leave(code).catch(() => {}); roomStatus = ''; renderLeague(); toast('방에서 나왔어요'); };
+    };
   }
 
   // ---------- 캐릭터 ----------

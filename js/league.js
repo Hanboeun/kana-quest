@@ -11,9 +11,9 @@
   const STYLE_MIX = [].concat(Array(8).fill('steady'), Array(6).fill('weekend'), Array(6).fill('early'), Array(5).fill('clutch'), Array(4).fill('idle'));
   const COLORS = ['#e8590c', '#1c7ed6', '#2f9e44', '#ae3ec9', '#f08c00', '#0c8599', '#d6336c', '#5c7cfa', '#74b816', '#c2255c'];
 
-  function members(tier, weekKey, seed) {
+  function members(tier, weekKey, seed, count) {
     const r = GQ.rand.rng(seed + '|m|' + weekKey + '|' + tier);
-    const names = GQ.rand.shuffle(GQ.data.botNames, r).slice(0, SIZE - 1);
+    const names = GQ.rand.shuffle(GQ.data.botNames, r).slice(0, count == null ? SIZE - 1 : count);
     const styles = GQ.rand.shuffle(STYLE_MIX, r);
     return names.map((name, i) => ({
       id: 'b' + i, name, style: styles[i], color: COLORS[Math.floor(r() * COLORS.length)],
@@ -44,16 +44,38 @@
     for (let d = 0; d < 7; d++) s += state.xp.byDay[GQ.time.addDays(weekKey, d)] || 0;
     return s;
   }
-  function standingsFor(state, tier, weekKey, now) {
-    const rows = members(tier, weekKey, state.league.seed).map(m => ({ id: m.id, name: m.name, color: m.color, xp: botXp(m, tier, weekKey, now), isMe: false }));
-    rows.push({ id: 'me', name: '나', xp: myWeekXp(state, weekKey), isMe: true });
+  // 친구 리그 방: 마지막으로 받아 둔 방 사람들 기록(그 주 것만)
+  function roomRealFor(state, weekKey) {
+    const ls = state.room && state.room.lastSeen;
+    if (!ls || ls.weekKey !== weekKey || !ls.members) return [];
+    return Object.keys(ls.members).map(uid => ({ id: uid, name: ls.members[uid].name || '친구', xp: ls.members[uid].xp || 0, look: ls.members[uid].look || null }));
+  }
+  // real: 나를 뺀 방 사람들 [{id,name,xp,look}]. 남는 자리는 가상 플레이어로 채움.
+  // 방에 있으면 가상 플레이어는 방 코드·방 단계로 정해져서 모두에게 똑같이 보임
+  function standingsFor(state, tier, weekKey, now, real) {
+    const room = state.room && state.room.code ? state.room : null;
+    real = (real || roomRealFor(state, weekKey)).slice(0, SIZE - 1);
+    const seed = room ? 'room:' + room.code : state.league.seed;
+    const botTier = room && room.tier != null ? room.tier : tier;
+    const rows = members(botTier, weekKey, seed, SIZE - 1 - real.length).map(m => ({ id: m.id, name: m.name, color: m.color, xp: botXp(m, botTier, weekKey, now), isMe: false, isBot: true }));
+    for (const p of real) rows.push({ id: p.id, name: p.name, xp: p.xp, look: p.look || null, isMe: false, isReal: true });
+    rows.push({ id: 'me', name: room && room.name ? room.name : '나', xp: myWeekXp(state, weekKey), isMe: true });
     rows.sort((a, b) => b.xp - a.xp || (a.isMe ? -1 : b.isMe ? 1 : 0));
     rows.forEach((r, i) => { r.rank = i + 1; });
     return rows;
   }
-  function standings(state, now) {
+  function standings(state, now, real) {
     const wk = state.league.weekKey || GQ.time.weekKey(now);
-    return standingsFor(state, state.league.tier, wk, now);
+    return standingsFor(state, state.league.tier, wk, now, real);
+  }
+  // 초대 코드: 헷갈리는 글자(0,O,1,I,L) 뺀 6자리
+  const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  function makeCode(rng) { let c = ''; for (let i = 0; i < 6; i++) c += CODE_CHARS[Math.floor((rng || Math.random)() * CODE_CHARS.length)]; return c; }
+  // 방 단계: 방 사람들 리그 단계의 중간값
+  function roomTier(tiers) {
+    if (!tiers || !tiers.length) return 0;
+    const t = tiers.slice().sort((a, b) => a - b), n = t.length;
+    return n % 2 ? t[(n - 1) / 2] : Math.floor((t[n / 2 - 1] + t[n / 2]) / 2);
   }
   function settle(state, now) {
     let s = JSON.parse(JSON.stringify(state));
@@ -83,5 +105,5 @@
     s.pendingResult = result;
     return { state: s, result };
   }
-  GQ.league = { SIZE, UP, DOWN, TIERS, members, botXp, standings, settle, myWeekXp };
+  GQ.league = { SIZE, UP, DOWN, TIERS, members, botXp, standings, settle, myWeekXp, makeCode, roomTier, roomRealFor, CODE_CHARS };
 })();
