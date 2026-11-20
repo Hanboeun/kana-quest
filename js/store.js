@@ -16,7 +16,10 @@
       owned: [],
       equipped: { hat: null, outfit: null, item: null, bg: null },
       settings: { hangul: false, sound: true, voiceURI: '', joinKana: false },
-      stats: { answered: 0, correct: 0, speak: 0, write: 0 },
+      stats: { answered: 0, correct: 0, speak: 0, write: 0, bestCombo: 0 },
+      chests: { count: 0, log: [] },
+      avatar: { look: GQ.avatar ? GQ.avatar.defaultLook() : {}, owned: GQ.avatar ? GQ.avatar.STARTER.slice() : [] },
+      migratedAvatar: false,
       pendingResult: null,
     };
   }

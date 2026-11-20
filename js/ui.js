@@ -1,7 +1,8 @@
 // 화면
 (function () {
   const D = GQ.data;
-  const APP_VERSION = '19';
+  const SCRIPT_BASE = document.currentScript && document.currentScript.src;
+  const APP_VERSION = '20';
   const app = document.getElementById('app');
   let state = null, store = null, caps = { tts: false, asr: false }, tab = 'home', toastT = null, mascotN = 0;
   const now = () => Date.now();
@@ -20,27 +21,27 @@
     sound: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/></svg>',
     mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
     x: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+    chest: '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M3 10h18v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" fill="#c9792f"/><path d="M3 10a9 5 0 0 1 18 0z" fill="#e0943f"/><rect x="3" y="9.4" width="18" height="2" fill="#f5c542"/><rect x="10.5" y="9" width="3" height="5" rx="1" fill="#f5c542"/></svg>',
   };
 
-  // ---------- 캐릭터 ----------
-  function piece(id) { return D.cosmetics.find(c => c.id === id); }
-  function mascot(eq, size) {
-    const id = 'mc' + (++mascotN);
-    const p = (slot) => (eq[slot] && piece(eq[slot]) ? piece(eq[slot]).svg : '');
-    return `<svg viewBox="0 0 120 120" width="${size}" height="${size}" role="img" aria-label="내 캐릭터"><defs><clipPath id="${id}"><circle cx="60" cy="60" r="58"/></clipPath></defs>
-      <g clip-path="url(#${id})"><circle cx="60" cy="60" r="58" fill="#dfe4fb"/>${p('bg')}</g>
-      <ellipse cx="44" cy="100" rx="9" ry="5" fill="#f3e3d3" stroke="#2a2a3a" stroke-width="2"/><ellipse cx="76" cy="100" rx="9" ry="5" fill="#f3e3d3" stroke="#2a2a3a" stroke-width="2"/>
-      <ellipse cx="60" cy="72" rx="34" ry="30" fill="#fffaf4" stroke="#2a2a3a" stroke-width="2.5"/>
-      ${p('outfit')}
-      <circle cx="48" cy="66" r="3.4" fill="#2a2a3a"/><circle cx="72" cy="66" r="3.4" fill="#2a2a3a"/>
-      <ellipse cx="41" cy="74" rx="5" ry="3" fill="#f7a8b8"/><ellipse cx="79" cy="74" rx="5" ry="3" fill="#f7a8b8"/>
-      <path d="M55 73 Q60 78 65 73" stroke="#2a2a3a" stroke-width="2.2" fill="none" stroke-linecap="round"/>
-      ${p('hat')}${p('item')}</svg>`;
+  // ---------- 입체 캐릭터 (avatar3d.js를 필요할 때 불러옴) ----------
+  let av3d = null, av3dP = null, avHandle = null, avSel = 'hair';
+  function loadAvatar3d() {
+    if (av3dP) return av3dP;
+    const url = new URL('avatar3d.js?v=' + APP_VERSION, SCRIPT_BASE || location.href).href;
+    av3dP = import(url).then(m => (av3d = m)).catch(() => { av3dP = null; return null; });
+    return av3dP;
   }
-  function pieceIcon(c) {
-    const vb = c.slot === 'bg' ? '0 0 120 120' : c.slot === 'hat' ? '20 10 90 60' : c.slot === 'outfit' ? '15 60 90 55' : '75 45 45 55';
-    return `<svg viewBox="${vb}" aria-hidden="true">${c.svg}</svg>`;
+  // 화면의 <img data-avatar>에 내 캐릭터 그림(스냅샷)을 채움
+  function fillAvatars(root) {
+    const imgs = (root || document).querySelectorAll('img[data-avatar]');
+    if (!imgs.length) return;
+    loadAvatar3d().then(m => {
+      if (!m) return;
+      imgs.forEach(img => { try { const look = img.dataset.look ? JSON.parse(img.dataset.look) : state.avatar.look; img.src = m.snapshot(look, +img.dataset.size || 128); img.hidden = false; } catch (e) {} });
+    });
   }
+  const avatarImg = (size, look) => `<img data-avatar data-size="${size * 2}" ${look ? `data-look='${esc(JSON.stringify(look))}'` : ''} alt="내 캐릭터" width="${size}" height="${size}" hidden>`;
 
   // ---------- 공통 ----------
   function toast(msg) {
@@ -68,11 +69,13 @@
 
   // ---------- 틀 ----------
   function render() {
+    if (av3d) av3d.unmount(); avHandle = null; // 화면이 바뀌면 3D는 떼어서 멈춤
     if (tab === 'home') renderHome();
     else if (tab === 'league') renderLeague();
     else if (tab === 'me') renderMe();
     else renderOpts();
     if (state.pendingResult) showWeekResult();
+    fillAvatars(app);
   }
   function shell(inner) {
     const tabs = [['home', '홈'], ['league', '리그'], ['me', '캐릭터'], ['opts', '설정']];
@@ -113,13 +116,15 @@
     } else hero = '';
     const qs = state.quests.list.map(q => `<div class="quest"><span class="t">${esc(q.title)}</span>${q.done ? '<span class="stamp" aria-label="완료">済</span>' : `<span class="qcount">${q.progress}/${q.target}</span>`}
       ${q.done ? '' : `<div class="bar"><i style="width:${Math.round(q.progress / q.target * 100)}%"></i></div>`}</div>`).join('');
-    shell(`${statusChips()}${hero}
+    const chestCta = state.chests.count ? `<button class="card chest-cta" id="homeChest"><span class="chest-mini">${ICON.chest}</span><span><b>보물상자 ${state.chests.count}개</b><br><span class="sub">눌러서 열면 꾸미기 아이템이 나와요</span></span><span class="badge-n">${state.chests.count}</span></button>` : '';
+    shell(`${statusChips()}${chestCta}${hero}
       <section class="card"><div class="row"><div><h2>오늘 복습</h2><p class="sub">${due ? `기억이 흐려질 때가 된 글자 ${due}개` : seen ? '지금은 복습할 때가 된 글자가 없어요. 약한 글자로 연습할 수 있어요' : '레슨을 하면 복습할 글자가 쌓여요'}</p></div>
         <button class="btn ${due ? 'gold' : 'ghost'} small" data-go="review" ${seen ? '' : 'disabled'}>복습하기</button></div></section>
       <section class="card"><div class="row"><h2>하루 퀘스트</h2><span class="sub">하나 깰 때마다 조각 하나</span></div><div class="quests">${qs}</div></section>
       ${mapHtml()}`);
     bindGo(app);
     app.querySelectorAll('[data-group]').forEach(b => b.onclick = () => openGroup(b.dataset.group));
+    const hc = app.querySelector('#homeChest'); if (hc) hc.onclick = openChest;
   }
   function mapHtml() {
     const sec = (script, title, ja) => {
@@ -191,7 +196,7 @@
     const isBoss = mode === 'boss' || mode === 'final';
     GQ.speech.preload(qs.map(q => { const k = D.byId.get(q.itemId); return k ? k.char : q.kind === 'word' ? q.prompt : ''; }));
     const queue = qs.slice(), answers = [];
-    let i = 0, stopAnim = () => {}, timer = null;
+    let i = 0, stopAnim = () => {}, timer = null, combo = 0, maxCombo = 0;
     const root = document.createElement('div'); root.className = 'session';
     document.body.appendChild(root);
     document.body.style.overflow = 'hidden';
@@ -200,10 +205,20 @@
     function quit() { stopAnim(); clearInterval(timer); GQ.speech.stop(); root.remove(); document.body.style.overflow = ''; render(); }
     function frame(body, foot) {
       const done = i, total = queue.length;
-      root.innerHTML = `<div class="s-top"><button class="x" aria-label="그만하기">${ICON.x}</button><div class="bar"><i style="width:${Math.round(done / total * 100)}%"></i></div></div>
+      root.innerHTML = `<div class="s-top"><button class="x" aria-label="그만하기">${ICON.x}</button><div class="bar"><i style="width:${Math.round(done / total * 100)}%"></i></div><span class="combo" id="combo" aria-live="polite"></span></div>
         ${isBoss ? '<div class="timer"><i></i></div>' : '<div></div>'}
         <div class="s-body"><span class="badge ${isBoss ? 'boss' : ''}">${esc(label)}</span>${body}</div><div class="s-foot">${foot || ''}</div>`;
       root.querySelector('.x').onclick = () => confirmQuit();
+      paintCombo('');
+    }
+    // 콤보 배지: 2콤보부터 보이고 3·5·10·20에서 단계가 올라감. pop=방금 늘었음, break=방금 끊김
+    function paintCombo(fx, broken) {
+      const el = root.querySelector('#combo'); if (!el) return;
+      const n = fx === 'break' ? broken : combo;
+      if (n < 2) { el.className = 'combo'; el.textContent = ''; return; }
+      el.textContent = n + ' 콤보';
+      el.className = 'combo t' + GQ.combo.tier(n) + (fx ? ' ' + fx : '');
+      if (fx === 'break') setTimeout(() => { if (el.isConnected) { el.className = 'combo'; el.textContent = ''; } }, 650);
     }
     function confirmQuit() {
       if (!answers.length) return quit();
@@ -229,15 +244,20 @@
     }
     function record(q, correct, ms, result, extra) {
       clearInterval(timer);
-      if (!q._retry) answers.push({ q, correct, ms, result });
+      const before = combo;
+      combo = GQ.combo.next(combo, correct, !!q._retry);
+      maxCombo = Math.max(maxCombo, combo);
+      const comboBonus = correct && !q._retry ? GQ.combo.bonus(combo) : 0;
+      if (!q._retry) answers.push({ q, correct, ms, result, combo, comboBonus });
       if (!correct && !isBoss && !q._retry && q.kind !== 'speak') queue.push(Object.assign({}, q, { _retry: true }));
-      feedback(q, correct, ms, extra || {});
+      if (combo > before) paintCombo('pop'); else if (combo === 0 && before >= 2) paintCombo('break', before);
+      feedback(q, correct, ms, Object.assign({ comboBonus }, extra || {}));
     }
     function feedback(q, correct, ms, extra) {
       const foot = root.querySelector('.s-foot');
       const k = D.byId.get(q.itemId);
       const fast = correct && ms <= 1500 && !['speak', 'write'].includes(q.kind);
-      const plus = correct && !q._retry ? `+${10 + (fast ? 5 : 0)} XP${fast ? ' · 빨라요' : ''}` : '';
+      const plus = correct && !q._retry ? `+${10 + (fast ? 5 : 0) + (extra.comboBonus || 0)} XP${fast ? ' · 빨라요' : ''}${extra.comboBonus ? ` · ${combo}콤보 +${extra.comboBonus}` : ''}` : '';
       let detail = '';
       if (q.kind === 'word') detail = `${esc(q.prompt)} = ${esc(q.answer)} · ${esc(q.meaning)}`;
       else if (k) detail = `${esc(k.char)} = ${esc(k.romaji)}${state.settings.hangul || !correct ? ` (${esc(k.hangul)})` : ''}`;
@@ -366,17 +386,19 @@
         if (s.cleared) extra = `<p class="celebrate">이제 듀오링고에서 영어 표기를 꺼도 돼요</p><p class="sub">듀오링고 설정에서 발음 표기(로마자)를 끄고 일본어 글자만 보고 풀어보세요.</p>`;
       }
       if (s.unlocked) extra += `<p class="sub"><b class="kana">${esc(group(s.unlocked).title)}</b>이(가) 열렸어요</p>`;
-      const rewards = s.rewards.concat(s.completed.map(q => q.reward).filter(Boolean)).map(piece).filter(Boolean);
-      const quests = s.completed.map(q => `<div class="reward"><span class="stamp">済</span><span>퀘스트 완료 · ${esc(q.title)}<br><small class="sub">+30 XP</small></span></div>`).join('');
-      const rw = rewards.map(c => `<div class="reward">${pieceIcon(c)}<span>새 조각 · <b>${esc(c.name)}</b><br><small class="sub">캐릭터 탭에서 입혀보세요</small></span></div>`).join('');
+      const chestsGot = s.rewards.filter(x => x === 'chest').length + s.completed.length;
+      const quests = s.completed.map(q => `<div class="reward"><span class="stamp">済</span><span>퀘스트 완료 · ${esc(q.title)}<br><small class="sub">+30 XP · 보물상자 1개</small></span></div>`).join('');
+      const rw = chestsGot ? `<div class="reward chest-got"><span class="chest-mini">${ICON.chest}</span><span>보물상자 <b>${chestsGot}개</b>를 받았어요</span><button class="btn small gold" id="openNow">지금 열기</button></div>` : '';
       const ms = s.milestone ? `<div class="reward"><span class="chip streak">${ICON.flame}${s.milestone}일</span><span>연속 학습 ${s.milestone}일 달성!</span></div>` : '';
       stopAnim(); clearInterval(timer);
       root.innerHTML = `<div></div><div></div><div class="s-body"><section class="card result">
         <p class="sub">${esc(label)}</p><h1>${headline}</h1><div class="xp">+${s.xp}</div><p class="sub" style="margin-top:-6px">XP</p>
         <div class="statgrid"><div class="stat"><b>${s.correct}/${s.total}</b><span>맞힘</span></div><div class="stat"><b>${pct}%</b><span>정답률</span></div><div class="stat"><b>${(s.avgMs / 1000).toFixed(1)}초</b><span>평균 시간</span></div></div>
+        ${s.maxCombo >= 2 ? `<div class="combo-result"><span class="combo t${GQ.combo.tier(s.maxCombo)}">최고 ${s.maxCombo} 콤보</span>${s.comboXp ? `<span class="sub">콤보 보너스 +${s.comboXp} XP</span>` : ''}${s.maxCombo >= state.stats.bestCombo && s.maxCombo >= 5 ? '<span class="sub">내 최고 기록!</span>' : ''}</div>` : ''}
         ${extra}${ms}${quests}${rw}</section></div>
         <div class="s-foot"><button class="btn wide" id="done">확인</button></div>`;
       root.querySelector('#done').onclick = quit;
+      const on = root.querySelector('#openNow'); if (on) on.onclick = () => { quit(); openChest(); };
     }
     next();
   }
@@ -386,7 +408,7 @@
     const r = state.pendingResult; if (!r || document.querySelector('.sheet-bg.week')) return;
     const from = D.leagues[r.fromTier], to = D.leagues[r.toTier];
     const title = r.outcome === 'up' ? `${to.ko} 리그로 승급!` : r.outcome === 'down' ? `${to.ko} 리그로 내려갔어요` : `${to.ko} 리그 유지`;
-    const rw = r.rewards.map(piece).filter(Boolean).map(c => `<div class="reward">${pieceIcon(c)}<span>승급 보상 · <b>${esc(c.name)}</b></span></div>`).join('');
+    const rw = r.rewards.filter(x => x === 'chest').length ? `<div class="reward chest-got"><span class="chest-mini">${ICON.chest}</span><span>승급 보상 · <b>보물상자 1개</b></span></div>` : '';
     sheet(`<p class="sub">지난주 리그 결과 (${esc(r.weekKey)} 주)</p><h2>${title}</h2>
       <div class="lg-head"><div class="tier-badge" style="background:${to.color}">${esc(to.ja)}</div>
       <div><b>${r.rank}위</b> · ${r.xp} XP<br><span class="sub">${esc(from.ko)} → ${esc(to.ko)}</span></div></div>${rw}
@@ -407,7 +429,7 @@
       const zone = r.rank === GQ.league.UP && state.league.tier < 9 ? '<div class="zone up">▲ 승급선 · 여기까지 다음 리그로</div>' :
         r.rank === GQ.league.SIZE - GQ.league.DOWN && state.league.tier > 0 ? '<div class="zone down">▼ 강등선 · 아래는 이전 리그로</div>' : '';
       const cls = (r.rank <= GQ.league.UP && state.league.tier < 9 ? 'top ' : '') + (r.rank > GQ.league.SIZE - GQ.league.DOWN && state.league.tier > 0 ? 'low ' : '') + (r.isMe ? 'me' : '');
-      const av = r.isMe ? `<span class="av" style="background:var(--ai-soft)">${mascot(state.equipped, 34)}</span>` : `<span class="av" style="background:${r.color}">${esc(r.name[0])}</span>`;
+      const av = r.isMe ? `<span class="av me-av" style="background:var(--ai-soft)">${avatarImg(34)}<b>나</b></span>` : `<span class="av" style="background:${r.color}">${esc(r.name[0])}</span>`;
       return `<div class="srow ${cls}"><span class="rk">${r.rank}</span>${av}<span class="nm">${esc(r.name)}</span><b>${r.xp} XP</b></div>${zone}`;
     }).join('');
     shell(`${statusChips()}
@@ -419,17 +441,77 @@
 
   // ---------- 캐릭터 ----------
   function renderMe() {
-    const slots = [['hat', '머리'], ['outfit', '옷'], ['item', '소품'], ['bg', '배경']];
-    const n = state.owned.length, total = D.cosmetics.length;
-    shell(`<section class="card mascot-stage">${mascot(state.equipped, 180)}<h1>내 캐릭터</h1><p class="sub">조각 ${n}/${total}개 · 퀘스트, 승급, 연속 학습, 보스로 모아요</p></section>
-      <section class="card slots">${slots.map(([s, l]) => `<div class="slot"><h3>${l}</h3><div class="pieces">${D.cosmetics.filter(c => c.slot === s).map(c => {
-        const own = state.owned.includes(c.id);
-        return own ? `<button class="piece" data-p="${c.id}" aria-pressed="${state.equipped[s] === c.id}">${pieceIcon(c)}${esc(c.name)}</button>`
-          : `<div class="piece locked"><span class="q">?</span>잠김</div>`;
-      }).join('')}</div></div>`).join('')}</section>`);
-    app.querySelectorAll('[data-p]').forEach(b => b.onclick = () => {
-      const c = piece(b.dataset.p); state.equipped[c.slot] = state.equipped[c.slot] === c.id ? null : c.id; save(); renderMe();
+    const A = GQ.avatar;
+    const chestItems = A.items.filter(i => !A.STARTER.includes(i.id));
+    const got = chestItems.filter(i => state.avatar.owned.includes(i.id)).length;
+    shell(`<section class="card avatar-card"><div class="stage" id="stage"><div class="stage-msg">캐릭터 불러오는 중…</div></div>
+        <p class="sub" style="text-align:center">손가락으로 좌우로 밀면 돌아가요 · 모은 아이템 ${got}/${chestItems.length}</p>
+        ${state.chests.count ? `<button class="btn gold wide" id="openChest">${ICON.chest} 보물상자 ${state.chests.count}개 열기</button>` : '<p class="sub" style="text-align:center">퀘스트·리그 승급·연속 학습으로 보물상자를 받아요</p>'}</section>
+      <section class="card"><div class="slot-tabs" role="tablist">${A.SLOTS.map(s => `<button role="tab" data-slot="${s}" aria-selected="${s === avSel}">${A.SLOT_NAMES[s]}</button>`).join('')}</div>
+        <div class="pieces" id="items"></div></section>`);
+    paintItems();
+    app.querySelectorAll('[data-slot]').forEach(b => b.onclick = () => { avSel = b.dataset.slot; app.querySelectorAll('[data-slot]').forEach(x => x.setAttribute('aria-selected', x === b)); paintItems(); });
+    const oc = app.querySelector('#openChest'); if (oc) oc.onclick = openChest;
+    const stage = app.querySelector('#stage');
+    loadAvatar3d().then(m => {
+      if (tab !== 'me' || !stage.isConnected) return;
+      if (!m) { stage.innerHTML = '<div class="stage-msg">3D 캐릭터를 불러오지 못했어요.<br>인터넷 연결을 확인하고 다시 열어주세요.</div>'; return; }
+      try { stage.innerHTML = ''; avHandle = m.mount(stage, state.avatar.look); }
+      catch (e) { stage.innerHTML = '<div class="stage-msg">이 기기에서는 3D 캐릭터를 보여줄 수 없어요. 옷은 아래에서 고를 수 있어요.</div>'; }
     });
+  }
+  function paintItems() {
+    const A = GQ.avatar, box = app.querySelector('#items'); if (!box) return;
+    const all = A.items.filter(i => i.slot === avSel);
+    const own = all.filter(i => state.avatar.owned.includes(i.id)), locked = all.length - own.length;
+    const cur = state.avatar.look[avSel];
+    const swatch = (it) => it.def.color ? `<span class="swatch" style="background:${it.def.color}"></span>` : it.def.sky ? `<span class="swatch" style="background:linear-gradient(${it.def.sky},${it.def.ground})"></span>` : `<span class="swatch ink">${esc(it.name[0])}</span>`;
+    box.innerHTML = (A.OPTIONAL.has(avSel) ? `<button class="piece" data-item="" aria-pressed="${!cur}"><span class="swatch ink">✕</span>없음</button>` : '') +
+      own.map(it => `<button class="piece" data-item="${it.id}" aria-pressed="${cur === it.id}">${swatch(it)}${esc(it.name)}</button>`).join('') +
+      Array.from({ length: locked }, () => '<div class="piece locked"><span class="q">?</span>상자에서</div>').join('');
+    box.querySelectorAll('[data-item]').forEach(b => b.onclick = () => {
+      state.avatar.look[avSel] = b.dataset.item || null; save();
+      if (avHandle) avHandle.update(state.avatar.look);
+      paintItems();
+    });
+  }
+
+  // ---------- 보물상자 열기 ----------
+  function openChest() {
+    if (!state.chests.count) return;
+    const bg = document.createElement('div'); bg.className = 'chest-bg';
+    bg.innerHTML = `<div class="chest-stage"><div class="chest" id="chest" role="button" tabindex="0" aria-label="보물상자 열기"><div class="lid"></div><div class="base"><i></i></div><div class="glow"></div></div>
+      <p class="chest-hint">눌러서 열기 · 남은 상자 ${state.chests.count}개</p><div class="chest-prize" id="prize" hidden></div></div>`;
+    document.body.appendChild(bg);
+    loadAvatar3d();
+    const chest = bg.querySelector('#chest'), prize = bg.querySelector('#prize'), hint = bg.querySelector('.chest-hint');
+    let opened = false;
+    const close = () => { bg.remove(); render(); };
+    const go = () => {
+      if (opened) return; opened = true;
+      chest.classList.add('shake'); hint.textContent = '두근두근…';
+      setTimeout(() => {
+        chest.classList.remove('shake'); chest.classList.add('open');
+        const r = GQ.chest.open(state, Math.random, now()); state = r.state; save();
+        hint.hidden = true; prize.hidden = false;
+        const more = state.chests.count;
+        if (r.item) {
+          const A = GQ.avatar, tryLook = Object.assign({}, state.avatar.look, { [r.item.slot]: r.item.id });
+          prize.innerHTML = `<p class="sub">${esc(A.SLOT_NAMES[r.item.slot])}</p><h2>${esc(r.item.name)}</h2>
+            <div class="prize-pic">${avatarImg(150, tryLook)}</div>
+            <div class="actions"><button class="btn ghost" id="later">나중에</button><button class="btn" id="wear">입어보기</button></div>
+            ${more ? `<button class="btn gold wide" id="again">상자 하나 더 열기 (${more})</button>` : ''}`;
+          fillAvatars(prize);
+          prize.querySelector('#wear').onclick = () => { state.avatar.look[r.item.slot] = r.item.id; save(); if (avHandle && tab === 'me') avHandle.update(state.avatar.look); avSel = r.item.slot; tab = 'me'; close(); };
+        } else {
+          prize.innerHTML = `<h2>모든 아이템을 모았어요!</h2><p class="sub">대신 XP ${r.xp}를 받았어요</p><div class="actions one"><button class="btn" id="later">확인</button></div>
+            ${more ? `<button class="btn gold wide" id="again">상자 하나 더 열기 (${more})</button>` : ''}`;
+        }
+        prize.querySelector('#later').onclick = close;
+        const ag = prize.querySelector('#again'); if (ag) ag.onclick = () => { bg.remove(); openChest(); };
+      }, 750);
+    };
+    chest.onclick = go; chest.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') go(); };
   }
 
   // ---------- 설정 ----------
@@ -558,6 +640,7 @@
     store = GQ.store.createStore([GQ.store.dbBackend(), GQ.store.localBackend('gq_state_v1')]);
     caps = GQ.speech.capsOf(window);
     state = await store.load();
+    state = GQ.chest.migrate(state, now()); // 예전 조각 → 상자, 캐릭터 데이터 정리
     GQ.speech.setPreferred(state.settings.voiceURI);
     GQ.speech.setJoin(state.settings.joinKana);
     refreshDaily(); save();

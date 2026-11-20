@@ -150,6 +150,10 @@
     const fast = graded.filter(a => a.correct && a.ms <= 1500).length;
     const avgMs = total ? graded.reduce((t, a) => t + a.ms, 0) / total : 0;
     let xp = correct * GQ.quests.XP.correct + fast * GQ.quests.XP.fast;
+    // 콤보 보너스: 문제 화면에서 정답마다 계산해 넣어둔 값의 합
+    const comboXp = graded.reduce((t, a) => t + (a.comboBonus || 0), 0);
+    const maxCombo = graded.reduce((m, a) => Math.max(m, a.combo || 0), 0);
+    xp += comboXp;
     const summary = { mode, groupId, total, correct, avgMs, cleared: null, unlocked: null, rewards: [], completed: [], milestone: null };
 
     if ((mode === 'lesson' || mode === 'review') && total) xp += GQ.quests.XP.lesson;
@@ -175,12 +179,12 @@
         xp += GQ.quests.XP.boss;
         if (!s.finalBoss.cleared) {
           s.finalBoss.cleared = true;
-          for (let i = 0; i < 2; i++) { const id = GQ.quests.pickReward(s, 'final' + i); if (id) { s.owned.push(id); summary.rewards.push(id); } }
+          s = GQ.chest.grant(s, 'final', 2, now); summary.rewards.push('chest', 'chest');
         }
       }
     }
     s = GQ.quests.addXp(s, xp, now);
-    summary.xp = xp;
+    summary.xp = xp; summary.comboXp = comboXp; summary.maxCombo = maxCombo;
     const events = [{ type: 'xp', n: xp }];
     if (mode === 'review') events.push({ type: 'review', n: total });
     const nSpeak = graded.filter(a => a.q.kind === 'speak').length, nWrite = graded.filter(a => a.q.kind === 'write').length;
@@ -188,10 +192,12 @@
     if (nWrite) events.push({ type: 'write', n: nWrite });
     if (mode === 'lesson') events.push({ type: 'lesson', n: 1 });
     if (mode === 'lesson' && total && correct === total) events.push({ type: 'perfect', n: 1 });
+    if (maxCombo >= 10) events.push({ type: 'combo', n: 1 });
     for (const e of events) { const r = GQ.quests.track(s, e, now); s = r.state; summary.completed.push(...r.completed); }
     const st = GQ.quests.touchStreak(s, now); s = st.state;
     summary.milestone = st.milestone; if (st.reward) summary.rewards.push(st.reward);
     s.stats.answered += total; s.stats.correct += correct; s.stats.speak += nSpeak; s.stats.write += nWrite;
+    s.stats.bestCombo = Math.max(s.stats.bestCombo || 0, maxCombo);
     return { state: s, summary };
   }
 

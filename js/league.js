@@ -56,7 +56,7 @@
     return standingsFor(state, state.league.tier, wk, now);
   }
   function settle(state, now) {
-    const s = JSON.parse(JSON.stringify(state));
+    let s = JSON.parse(JSON.stringify(state));
     const cur = GQ.time.weekKey(now);
     if (!s.league.weekKey) { s.league.weekKey = cur; return { state: s, result: null }; }
     if (s.league.weekKey >= cur) return { state: s, result: null };
@@ -69,7 +69,7 @@
       if (me.rank <= UP && from < TIERS - 1) { to = from + 1; outcome = 'up'; }
       else if (me.rank > SIZE - DOWN && from > 0) { to = from - 1; outcome = 'down'; }
       const rewards = [];
-      if (outcome === 'up') { const id = GQ.quests.pickReward(s, 'league' + wk); if (id) { rewards.push(id); s.owned.push(id); } }
+      if (outcome === 'up') { s = GQ.chest.grant(s, 'league', 1, end); rewards.push('chest'); }
       s.league.tier = to;
       result = { weekKey: wk, rank: me.rank, xp: me.xp, fromTier: from, toTier: to, outcome, rewards };
       wk = GQ.time.addDays(wk, 7); guard++;

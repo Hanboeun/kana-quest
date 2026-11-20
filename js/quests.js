@@ -8,7 +8,9 @@
     write: { title: (t) => `글자 ${t}개 쓰기`, targets: [3, 5, 8] },
     lesson: { title: (t) => `레슨 ${t}개 끝내기`, targets: [1, 2] },
     perfect: { title: () => '레슨 하나 틀리지 않고 끝내기', targets: [1] },
+    combo: { title: () => '한 번에 10콤보 달성', targets: [1] },
   };
+  const POOL_TYPES = Object.keys(POOL);
   const clone = (o) => JSON.parse(JSON.stringify(o));
 
   function pickReward(state, salt) {
@@ -47,17 +49,17 @@
       q.progress = Math.min(q.target, q.progress + (event.n == null ? 1 : event.n));
       if (q.progress >= q.target) {
         q.done = true;
-        q.reward = pickReward(s, q.id);
-        if (q.reward) s.owned.push(q.reward);
+        q.reward = 'chest'; // 보상은 보물상자
         completed.push(q);
       }
     }
+    if (completed.length) s = GQ.chest.grant(s, 'quest', completed.length, now);
     for (let i = 0; i < completed.length; i++) s = addXp(s, XP.quest, now);
     return { state: s, completed };
   }
   const MILESTONES = [3, 7, 14, 30, 50, 100, 200, 365];
   function touchStreak(state, now) {
-    const s = clone(state), today = GQ.time.dayKey(now);
+    let s = clone(state); const today = GQ.time.dayKey(now);
     if (s.streak.lastDay === today) return { state: s, milestone: null, reward: null };
     s.streak.count = s.streak.lastDay && GQ.time.dayDiff(s.streak.lastDay, today) === 1 ? s.streak.count + 1 : 1;
     s.streak.lastDay = today;
@@ -65,8 +67,7 @@
     let milestone = null, reward = null;
     if (MILESTONES.includes(s.streak.count)) {
       milestone = s.streak.count;
-      reward = pickReward(s, 'streak' + today);
-      if (reward) s.owned.push(reward);
+      s = GQ.chest.grant(s, 'streak', 1, now); reward = 'chest';
     }
     return { state: s, milestone, reward };
   }
@@ -74,5 +75,5 @@
     if (!state.streak.lastDay) return 0;
     return GQ.time.dayDiff(state.streak.lastDay, GQ.time.dayKey(now)) <= 1 ? state.streak.count : 0;
   }
-  GQ.quests = { XP, pickReward, addXp, ensureDaily, track, touchStreak, currentStreak };
+  GQ.quests = { POOL_TYPES, XP, pickReward, addXp, ensureDaily, track, touchStreak, currentStreak };
 })();
