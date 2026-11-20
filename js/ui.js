@@ -1,7 +1,7 @@
 // 화면
 (function () {
   const D = GQ.data;
-  const APP_VERSION = '17';
+  const APP_VERSION = '18';
   const app = document.getElementById('app');
   let state = null, store = null, caps = { tts: false, asr: false }, tab = 'home', toastT = null, mascotN = 0;
   const now = () => Date.now();
@@ -515,6 +515,20 @@
     };
   }
 
+  // ---------- 새 버전 확인 (GitHub Pages에서만) ----------
+  function checkUpdate() {
+    if (window.claude || location.protocol !== 'https:') return;
+    fetch('version.json?t=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(j => {
+      if (!j) return;
+      let tried = null; try { tried = sessionStorage.getItem('gq_reload_for'); } catch (e) {}
+      if (GQ.store.needsReload(j.v, APP_VERSION, tried)) {
+        if (document.querySelector('.session')) { toast('새 버전이 있어요. 레슨을 끝내면 바뀌어요'); return; }
+        try { sessionStorage.setItem('gq_reload_for', j.v); } catch (e) {}
+        location.reload();
+      }
+    }).catch(() => {});
+  }
+
   // ---------- 시작 ----------
   async function boot() {
     store = GQ.store.createStore([GQ.store.dbBackend(), GQ.store.localBackend('gq_state_v1')]);
@@ -527,7 +541,8 @@
     document.addEventListener('pointerdown', () => GQ.speech.unlock(), { once: true });
     GQ.speech.init().then(c => { caps = c; });
     setInterval(() => { if (!document.querySelector('.session') && !document.querySelector('.sheet-bg') && tab === 'league') render(); }, 60000);
-    document.addEventListener('visibilitychange', () => { if (!document.hidden && !document.querySelector('.session')) { refreshDaily(); save(); render(); } });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && !document.querySelector('.session')) { refreshDaily(); save(); render(); checkUpdate(); } });
+    checkUpdate();
   }
   GQ.ui = { boot, get state() { return state; } };
   boot();

@@ -103,5 +103,11 @@
     if (!isObj(obj) || !isObj(obj.xp)) throw new Error('기록 내용이 비어 있어요');
     return normalize(obj);
   }
-  GQ.store = { exportCode, importCode, defaultState, normalize, createStore, localBackend, dbBackend };
+  // 서버에 더 새 버전이 있으면 새로고침 (같은 버전으로는 한 번만 시도해서 무한 반복 방지)
+  function needsReload(remote, local, triedFor) {
+    const r = parseInt(remote, 10), l = parseInt(local, 10);
+    if (!r || !l) return false;
+    return r > l && String(remote) !== String(triedFor);
+  }
+  GQ.store = { needsReload, exportCode, importCode, defaultState, normalize, createStore, localBackend, dbBackend };
 })();
