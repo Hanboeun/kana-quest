@@ -96,7 +96,7 @@
   }
   function importCode(code) {
     const c = String(code || '').trim();
-    if (!c.startsWith('GQ1:')) throw new Error('가나 퀘스트 기록 코드가 아니에요');
+    if (!c.startsWith('GQ1:')) throw new Error('일본어 초급반 기록 코드가 아니에요');
     let obj;
     try {
       const bin = atob(c.slice(4)); const bytes = new Uint8Array(bin.length);

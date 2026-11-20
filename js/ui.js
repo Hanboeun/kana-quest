@@ -2,7 +2,7 @@
 (function () {
   const D = GQ.data;
   const SCRIPT_BASE = document.currentScript && document.currentScript.src;
-  const APP_VERSION = '27';
+  const APP_VERSION = '28';
   const app = document.getElementById('app');
   let state = null, store = null, caps = { tts: false, asr: false }, tab = 'home', toastT = null, mascotN = 0;
   const now = () => Date.now();
