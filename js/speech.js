@@ -219,7 +219,7 @@
   // AI 목소리 (Azure 신경망 음성으로 미리 만든 파일): 고른 목소리에 있으면 먼저 씀
   let ai = GQ.aiVoices || {}, voiceSel = 'nanami';
   function setAiClips(v) { ai = v || {}; }
-  function setVoice(v) { voiceSel = v || 'nanami'; }
+  function setVoice(v) { voiceSel = (v && v !== 'fukujin') ? v : 'nanami'; }
   function aiFor(text) {
     const v = ai[voiceSel]; if (!v) return null;
     if (!v._k) { v._k = new Set(v.kana || []); v._w = new Set(v.words || []); }
@@ -228,10 +228,7 @@
     return v._w.has(text) ? { type: 'word', url: 'audio/v/' + voiceSel + '/w/' + encodeURIComponent(text) + '.mp3' } : null;
   }
   function sourceFor(text) {
-    if (voiceSel !== 'fukujin') { const a = aiFor(text); if (a) return a; }
-    const k = clipFor(text); if (k) return { type: 'kana', url: k };
-    if (wordClips.has(text)) return { type: 'word', url: 'audio/w/' + encodeURIComponent(text) + '.mp3' };
-    if (join) { const p = wordPlan(text); if (p) return { type: 'join', plan: p }; }
+    const a = aiFor(text); if (a) return a; // AI 목소리만 (사람 녹음은 뺌)
     return { type: 'tts' };
   }
   // opts.delay: 화면이 바뀌자마자 나오지 않도록 자동 재생은 잠깐 기다렸다가

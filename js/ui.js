@@ -2,7 +2,7 @@
 (function () {
   const D = GQ.data;
   const SCRIPT_BASE = document.currentScript && document.currentScript.src;
-  const APP_VERSION = '33';
+  const APP_VERSION = '34';
   const HOME_URL = 'https://nihongo-league.web.app/'; // 앱 주소 (예전: hanboeun.github.io/kana-quest)
   const OLD_HOST = location.hostname === 'hanboeun.github.io';
   const app = document.getElementById('app');
@@ -125,7 +125,7 @@
           <p class="sub">1. 아래 <b>기록 복사</b>를 눌러요<br>2. <b>새 주소 열기</b> → 홈 화면에 추가해요<br>3. 새 앱의 <b>설정 → 기록 붙여넣기</b>에 붙여넣어요<br>4. 이 예전 아이콘은 지워도 돼요</p>
           <div class="actions"><button class="btn" id="mvCopy">기록 복사</button><a class="btn ghost" href="${HOME_URL}" target="_blank" rel="noopener">새 주소 열기</a></div>
           <p class="sub" id="mvMsg"></p></section>`
-      : (state.xp.total === 0 ? `<section class="card"><p class="sub">예전 주소(hanboeun.github.io)에서 하던 기록이 있으면 <b>설정 → 기록 붙여넣기</b>로 가져올 수 있어요</p></section>` : '');
+      : '';
     shell(`${statusChips()}${moveCard}${chestCta}${hero}
       <section class="card"><div class="row"><div><h2>오늘 복습</h2><p class="sub">${due ? `기억이 흐려질 때가 된 글자 ${due}개` : seen ? '지금은 복습할 때가 된 글자가 없어요. 약한 글자로 연습할 수 있어요' : '레슨을 하면 복습할 글자가 쌓여요'}</p></div>
         <button class="btn ${due ? 'gold' : 'ghost'} small" data-go="review" ${seen ? '' : 'disabled'}>복습하기</button></div></section>
@@ -565,7 +565,7 @@
     const swatch = (it) => it.def.color ? `<span class="swatch" style="background:${it.def.color}"></span>` : it.def.sky ? `<span class="swatch" style="background:linear-gradient(${it.def.sky},${it.def.ground})"></span>` : `<span class="swatch ink">${esc(it.name[0])}</span>`;
     box.innerHTML = (A.OPTIONAL.has(avSel) ? `<button class="piece" data-item="" aria-pressed="${!cur}"><span class="swatch ink">✕</span>없음</button>` : '') +
       own.map(it => `<button class="piece" data-item="${it.id}" aria-pressed="${cur === it.id}">${swatch(it)}${esc(it.name)}</button>`).join('') +
-      Array.from({ length: locked }, () => '<div class="piece locked"><span class="q">?</span>상자에서</div>').join('');
+      Array.from({ length: locked }, () => '<div class="piece locked"><span class="q">?</span></div>').join('');
     box.querySelectorAll('[data-item]').forEach(b => b.onclick = () => {
       state.avatar.look[avSel] = b.dataset.item || null; save();
       if (avHandle) avHandle.update(state.avatar.look);
@@ -637,7 +637,6 @@
     ['nanami', '나나미', '차분한 여자 목소리 (AI)'],
     ['keita', '케이타', '남자 목소리 (AI)'],
     ['aoi', '아오이', '밝은 여자 목소리 (AI)'],
-    ['fukujin', '사람 녹음', '실제 일본인 녹음 (일부 글자·단어만)'],
   ];
   function voiceChooser() {
     const cur = state.settings.voice || 'nanami';
@@ -664,7 +663,6 @@
         <div id="reset"><button class="btn ghost small" id="r1">기록 처음부터 다시</button></div></section>
       <section class="card"><h2>도움말</h2><p class="sub">· 레슨을 한 번 끝내면 그 행의 보스에 도전할 수 있고, 보스를 깨면 다음 행이 열려요.<br>· 리그는 매주 월요일 0시(한국 시간)에 새로 시작해요.<br>· 틀린 글자는 10분 뒤, 맞힌 글자는 1일, 3일, 7일… 간격으로 복습에 나와요.</p>
         <p class="fine">획순 데이터: <a href="https://kanjivg.tagaini.net/" target="_blank" rel="noopener">KanjiVG</a> (© Ulrich Apel, CC BY-SA 3.0)</p>
-        <p class="fine">글자 발음 녹음: Fukujinzuke, <a href="https://lingualibre.org/" target="_blank" rel="noopener">Lingua Libre</a> / Wikimedia Commons (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>). 앱에 맞게 그대로 사용.</p>
         <p class="fine">AI 목소리(나나미·케이타·아오이): Microsoft Azure 음성 합성으로 만든 소리.</p></section>`);
     app.querySelectorAll('[data-voice]').forEach(b => b.onclick = async () => {
       state.settings.voice = b.dataset.voice; GQ.speech.setVoice(b.dataset.voice); save();
